@@ -60,13 +60,13 @@ INSTALL_REQUIRES = (
     'scipy',
     'syned>=1.0.30',
     'srxraylib',
-    'wofryimpl>=1.0.21',
+    'wofryimpl>=1.0.26',
     'shadow4>=0.1.22',
-    'shadow-hybrid-methods>=1.0.0',
+    'shadow-hybrid-methods>=1.0.2',
 )
 
 setup(name='shadow4-hybrid',
-      version='0.0.2',
+      version='0.0.4',
       description='shadow/hybrid implementation in python',
       author='Manuel Sanchez del Rio, Luca Rebuffi, Xianbo Shi',
       author_email='lrebuffi@anl.gov',
