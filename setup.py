@@ -50,8 +50,7 @@ __date__ = "2016-now"
 from setuptools import setup
 
 PACKAGES = [
-    "shadow4",
-    "shadow4.hybrid",
+    "shadow4_hybrid",
 ]
 
 INSTALL_REQUIRES = (
@@ -66,7 +65,7 @@ INSTALL_REQUIRES = (
 )
 
 setup(name='shadow4-hybrid',
-      version='0.0.4',
+      version='0.0.5',
       description='shadow/hybrid implementation in python',
       author='Manuel Sanchez del Rio, Luca Rebuffi, Xianbo Shi',
       author_email='lrebuffi@anl.gov',
