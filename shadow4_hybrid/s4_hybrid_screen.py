@@ -48,6 +48,7 @@ import numpy
 import copy
 from typing import Tuple
 
+import numpy as np
 from srxraylib.util.data_structures import ScaledMatrix
 
 from syned.beamline.shape import Ellipsoid, EllipticalCylinder, Hyperboloid, HyperbolicCylinder, Circle
@@ -541,7 +542,6 @@ class _S4OEWithSurfaceHybridScreen(_ShadowOEHybridScreen):
              (isinstance(surface_shape, Hyperboloid) or isinstance(surface_shape, HyperbolicCylinder)): return surface_shape.get_q_focus()
         else: raise ValueError("calculation support for elliptical or hyperbolic elements: TO BE COMPLETED")
 
-
 class _S4OEWithSurfaceAndErrorHybridScreen(_S4OEWithSurfaceHybridScreen):
     def _get_shadow_optical_element_for_initial_tracing(self, input_parameters: HybridInputParameters, calculation_parameters: AbstractHybridScreen.CalculationParameters, beamline_element: BeamlineElement):
         shadow_oe = beamline_element.get_optical_element()
@@ -630,7 +630,6 @@ class _S4OELensHybridScreen(_S4ApertureHybridScreen):
 
         return screen_slit_element
 
-
 class _S4OELensAndErrorHybridScreen(_S4OELensHybridScreen):
     def _get_error_profiles(self, input_parameters: HybridInputParameters, calculation_parameters: AbstractHybridScreen.CalculationParameters):
         coords_to_m    = input_parameters.get("crl_coords_to_m")
@@ -647,7 +646,6 @@ class _S4OELensAndErrorHybridScreen(_S4OELensHybridScreen):
         z_values           = numerical_mesh.get_mesh_z()
 
         return ScaledMatrix(x_coords*coords_to_m, y_coords*coords_to_m, z_values.T*thickness_to_m)
-
 
 # -------------------------------------------------------------
 # HYBRID SCREENS IMPLEMENTATION CLASSES
@@ -676,6 +674,103 @@ class S4CRLSizeHybridScreen(_S4OELensHybridScreen, AbstractCRLSizeHybridScreen):
 class S4CRLSizeAndErrorHybridScreen(_S4OELensAndErrorHybridScreen, AbstractCRLSizeAndErrorHybridScreen):
     def __init__(self, wave_optics_provider: HybridWaveOpticsProvider):
         AbstractCRLSizeAndErrorHybridScreen.__init__(self, wave_optics_provider)
+
+
+# -------------------------------------------------------------
+# -------------------------------------------------------------
+# -------------------------------------------------------------
+# SHADOW4 COMPATIBILITY
+# -------------------------------------------------------------
+# -------------------------------------------------------------
+# -------------------------------------------------------------
+
+from syned.beamline.optical_element import OpticalElement
+from syned.beamline.element_coordinates import ElementCoordinates
+
+from shadow4.beamline.s4_beamline_element import S4BeamlineElement
+from shadow4.beam.s4_beam import S4Beam
+
+class S4HybridScreen(OpticalElement):
+    def __init__(self, calculation_type : HybridCalculationType):
+        self.__hybrid_screen = HybridScreenManager.Instance().create_hybrid_screen_manager(IMPLEMENTATION, calculation_type)
+        self.__calculation_type = calculation_type
+
+        super(S4HybridScreen, self).__init__(name=self.__hybrid_screen.__class__.__qualname__,  boundary_shape=None)
+
+
+    def _get_hybrid_screen(self) -> _ShadowOEHybridScreen: return self.__hybrid_screen
+    def _get_calculation_type(self) -> HybridCalculationType: return self.__calculation_type
+
+    def to_python_code(self, **kwargs):
+        txt = "\nfrom shadow4_hybrid.s4_hybrid_screen import S4HybridScreen"
+        txt += "\n\ncalculation_type=%i" % self.__calculation_type
+        txt += "\nhybrid_screen = S4HybridScreen(calculation_type)\n"
+
+        return txt
+
+class S4HybridScreenElement(S4BeamlineElement):
+    def __init__(self, hybrid_screen: S4HybridScreen, hybrid_input_parameters : HybridInputParameters):
+        self.__hybrid_input_parameters = hybrid_input_parameters
+
+        super(S4HybridScreenElement, self).__init__(optical_element=hybrid_screen,
+                                                    coordinates=ElementCoordinates(p=0, q=0, angle_radial=0.0, angle_radial_out=np.pi, angle_azimuthal=0.0),
+                                                    movements=None,
+                                                    input_beam=self.__hybrid_input_parameters.beam.wrapped_beam)
+
+    def trace_beam(self, **params):
+        hybrid_screen    = self.get_optical_element()._get_hybrid_screen()
+        input_parameters = self.__hybrid_input_parameters
+
+        return hybrid_screen.run_hybrid_method(input_parameters), None
+
+    def to_python_code(self, **kwargs):
+        calculation_type = self.get_optical_element()._get_calculation_type()
+        input_parameters = self.__hybrid_input_parameters
+
+        txt = "\n\n# optical element number XX"
+        txt += "\nfrom hybrid_methods.coherence.hybrid_screen import StdIOHybridListener"
+        txt += "\nfrom shadow4_hybrid.s4_hybrid_screen import S4HybridBeam, S4HybridOE, HybridInputParameters, S4HybridScreenElement"
+        txt += self.get_optical_element().to_python_code()
+
+        txt += "\n\nadditional_parameters = {\"beamline\" : beamline}"
+
+        if calculation_type == HybridCalculationType.CRL_SIZE_AND_ERROR_PROFILE:
+            txt += "\nadditional_parameters[\"crl_error_profiles\"] = %s" % input_parameters.get("crl_error_profiles")
+            if not input_parameters.get("crl_material") is None:
+                txt += "\nadditional_parameters[\"crl_material\"] = '%s'" % input_parameters.get("crl_material")
+            else:
+                txt += "\nadditional_parameters[\"crl_delta\"] = %g" % input_parameters.get("crl_delta")
+            txt += "\nadditional_parameters[\"crl_scaling_factor\"] = %g" % input_parameters.get("crl_scaling_factor")
+            txt += "\nadditional_parameters[\"crl_coords_to_m\"]    = %g" % input_parameters.get("crl_coords_to_m")
+            txt += "\nadditional_parameters[\"crl_thickness_to_m\"] = %g" % input_parameters.get("crl_thickness_to_m")
+
+        txt += "\ninput_parameters = HybridInputParameters(listener=StdIOHybridListener(),"
+        txt += "\n                                         beam=S4HybridBeam(beam=beam.duplicate()),"
+        txt += "\n                                         optical_element=S4HybridOE(optical_element=beamline.get_beamline_element_at(-1)),"
+        txt += "\n                                         diffraction_plane=%i," % input_parameters.diffraction_plane
+        txt += "\n                                         propagation_type=%i," % input_parameters.propagation_type
+        txt += "\n                                         n_bins_x=%i," % input_parameters.n_bins_x
+        txt += "\n                                         n_bins_z=%i," % input_parameters.n_bins_z
+        txt += "\n                                         n_peaks=%i," % input_parameters.n_peaks
+        txt += "\n                                         fft_n_pts=%i," % input_parameters.fft_n_pts
+        txt += "\n                                         analyze_geometry=%r," % input_parameters.analyze_geometry
+        txt += "\n                                         random_seed=None,"
+        txt += "\n                                         **additional_parameters)"
+        txt += "\n\nbeamline_element = S4HybridScreenElement(hybrid_screen=hybrid_screen, hybrid_input_parameters=input_parameters)"
+
+        txt += "\n\nhybrid_result, _ = beamline_element.trace_beam()"
+        if input_parameters.propagation_type == HybridPropagationType.FAR_FIELD:
+            txt +="\nbeam=hybrid_result.far_field_beam.wrapped_beam"
+        elif input_parameters.propagation_type == HybridPropagationType.NEAR_FIELD:
+            txt +="\nbeam=hybrid_result.near_field_beam.wrapped_beam"
+        else:
+            txt +="\nbeam_ff=hybrid_result.far_field_beam.wrapped_beam"
+            txt +="\nbeam_nf=hybrid_result.near_field_beam.wrapped_beam"
+            txt +="\nbeam=beam_ff #change to nf if desired"
+        txt +="\nmirr=None"
+
+        return txt
+
 
 # -------------------------------------------------------------
 # -------------------------------------------------------------
