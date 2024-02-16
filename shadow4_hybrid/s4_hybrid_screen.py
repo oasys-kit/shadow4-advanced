@@ -46,7 +46,7 @@
 # ----------------------------------------------------------------------- #
 import numpy
 import copy
-from typing import Tuple
+from typing import Tuple, Union
 
 import numpy as np
 from srxraylib.util.data_structures import ScaledMatrix
@@ -65,9 +65,10 @@ from shadow4.beamline.optical_elements.gratings.s4_additional_numerical_mesh_gra
 from shadow4.beamline.optical_elements.refractors.s4_crl import S4CRLElement
 from shadow4.beamline.optical_elements.refractors.s4_lens import S4LensElement
 
-from hybrid_methods.coherence.hybrid_screen import HybridBeamWrapper, HybridLengthUnits, HybridOEWrapper, HybridCalculationType, HybridInputParameters, AbstractHybridScreen, \
-    HybridDiffractionPlane, HybridPropagationType, AbstractSimpleApertureHybridScreen, HybridWaveOpticsProvider, AbstractMirrorOrGratingSizeHybridScreen, \
-    AbstractMirrorSizeAndErrorHybridScreen, AbstractGratingSizeAndErrorHybridScreen, AbstractCRLSizeHybridScreen, AbstractCRLSizeAndErrorHybridScreen, HybridScreenManager
+from hybrid_methods.coherence.hybrid_screen import HybridBeamWrapper, HybridLengthUnits, HybridOEWrapper, HybridGeometryAnalysis, HybridCalculationType, HybridInputParameters, HybridCalculationResult, \
+    HybridDiffractionPlane, HybridPropagationType, HybridWaveOpticsProvider, AbstractHybridScreen, AbstractSimpleApertureHybridScreen, AbstractMirrorOrGratingSizeHybridScreen, \
+    AbstractMirrorSizeAndErrorHybridScreen, AbstractGratingSizeAndErrorHybridScreen, AbstractCRLSizeHybridScreen, AbstractCRLSizeAndErrorHybridScreen, \
+    AbstractKBMirrorSizeHybridScreen, AbstractKBMirrorSizeAndErrorHybridScreen, HybridScreenManager
 
 IMPLEMENTATION = "SHADOW4"
 
@@ -76,28 +77,45 @@ IMPLEMENTATION = "SHADOW4"
 # -------------------------------------------------------------
 
 class S4HybridBeam(HybridBeamWrapper):
-    def __init__(self, beam : S4Beam):
+    def __init__(self, beam : Union[S4Beam, Tuple[S4Beam, S4Beam]]):
         super(S4HybridBeam, self).__init__(beam, HybridLengthUnits.METERS)
 
-    def duplicate(self): return S4HybridBeam(self.wrapped_beam.duplicate())
+    def duplicate(self):
+        if isinstance(self.wrapped_beam, S4Beam): return S4HybridBeam(self.wrapped_beam.duplicate())
+        else:                                     return S4HybridBeam([self.wrapped_beam[0].duplicate(),
+                                                                       self.wrapped_beam[1].duplicate()])
 
 class S4HybridOE(HybridOEWrapper):
-    def __init__(self, optical_element: S4BeamlineElement):
-        super(S4HybridOE, self).__init__(optical_element, name=optical_element.get_optical_element().get_name())
+    def __init__(self, optical_element: Union[S4BeamlineElement, Tuple[S4BeamlineElement, S4BeamlineElement]]):
+        if isinstance(optical_element, S4BeamlineElement):  super(S4HybridOE, self).__init__(optical_element, name=optical_element.get_optical_element().get_name())
+        else:                                               super(S4HybridOE, self).__init__(optical_element, name="2-OEs system")
 
     def check_congruence(self, calculation_type : int):
         if   calculation_type == HybridCalculationType.SIMPLE_APERTURE                and not isinstance(self.wrapped_optical_element, S4ScreenElement):
             raise Exception("Simple Aperture calculation runs for Slits O.E. only")
-        elif calculation_type == HybridCalculationType.MIRROR_OR_GRATING_SIZE         and not (isinstance(self.wrapped_optical_element, S4MirrorElement) or isinstance(self.wrapped_optical_element, S4GratingElement)):
+        elif calculation_type == HybridCalculationType.MIRROR_OR_GRATING_SIZE         and not (isinstance(self.wrapped_optical_element, S4MirrorElement) or
+                                                                                               isinstance(self.wrapped_optical_element, S4GratingElement)):
             raise Exception("Mirror/Grating calculation runs for Mirror/Grating O.E. only")
         elif calculation_type == HybridCalculationType.MIRROR_SIZE_AND_ERROR_PROFILE  and not isinstance(self.wrapped_optical_element, S4AdditionalNumericalMeshMirrorElement):
             raise Exception("Mirror calculation runs for Mirror O.E. with error profile only")
         elif calculation_type == HybridCalculationType.GRATING_SIZE_AND_ERROR_PROFILE and not isinstance(self.wrapped_optical_element, S4AdditionalNumericalMeshGratingElement):
             raise Exception("Grating calculation runs for Grating O.E. with error profile only")
-        elif calculation_type in [HybridCalculationType.CRL_SIZE, HybridCalculationType.CRL_SIZE_AND_ERROR_PROFILE] and not (isinstance(self.wrapped_optical_element, S4LensElement) or isinstance(self.wrapped_optical_element, S4CRLElement)):
+        elif calculation_type in [HybridCalculationType.CRL_SIZE, HybridCalculationType.CRL_SIZE_AND_ERROR_PROFILE] and not (isinstance(self.wrapped_optical_element, S4LensElement) or
+                                                                                                                             isinstance(self.wrapped_optical_element, S4CRLElement)):
             raise Exception("CRL calculation runs for Lens and CRLs O.E. only")
-        
-    def duplicate(self): return S4HybridOE(self.wrapped_optical_element.duplicate())
+        elif calculation_type == HybridCalculationType.KB_SIZE                        and not (isinstance(self.wrapped_optical_element, list) and not \
+                                                                                               (isinstance(self.wrapped_optical_element[0], S4MirrorElement) or
+                                                                                                isinstance(self.wrapped_optical_element[1], S4MirrorElement))):
+            raise Exception("KB-Mirror calculation runs for a pari of Mirror O.E.s only")
+        elif calculation_type == HybridCalculationType.KB_SIZE_AND_ERROR_PROFILE     and not (isinstance(self.wrapped_optical_element, list) and not \
+                                                                                              (isinstance(self.wrapped_optical_element[0], S4AdditionalNumericalMeshMirrorElement) or
+                                                                                               isinstance(self.wrapped_optical_element[1], S4AdditionalNumericalMeshMirrorElement))):
+            raise Exception("KB-Mirror calculation runs for a pari of Mirror O.E.s with error profile only")
+
+    def duplicate(self):
+        if isinstance(self.wrapped_optical_element, S4BeamlineElement): return S4HybridOE(self.wrapped_optical_element.duplicate())
+        else:                                                           return S4HybridOE([self.wrapped_optical_element[0].duplicate(),
+                                                                                           self.wrapped_optical_element[1].duplicate()])
 
 # -------------------------------------------------------------
 # HYBRID SCREENS HELPER CLASSES
@@ -647,33 +665,79 @@ class _S4OELensAndErrorHybridScreen(_S4OELensHybridScreen):
 
         return ScaledMatrix(x_coords*coords_to_m, y_coords*coords_to_m, z_values.T*thickness_to_m)
 
+class _S4OEKBMirrorHybridScreen():
+    def _modify_image_plane_distance_on_kb_1(self, kb_mirror_1: S4BeamlineElement, kb_mirror_2: S4BeamlineElement):
+        total_image_distance = kb_mirror_1.get_coordinates().q() + \
+                               kb_mirror_2.get_coordinates().p() + \
+                               kb_mirror_2.get_coordinates().q()
+
+        kb_mirror_1.get_coordinates().set_p_and_q(p=kb_mirror_1.get_coordinates().p(), q=total_image_distance)
+
+    def _merge_results(self, kb_mirror_1_result: HybridCalculationResult, kb_mirror_2_result: HybridCalculationResult):
+        def merge_beams(beam_1: S4HybridBeam, beam_2: S4HybridBeam):
+            if beam_1 is None or beam_2 is None: return None
+
+            go_beam_1 = numpy.where(beam_1.wrapped_beam.rays[:, 9] == 1)
+            go_beam_2 = numpy.where(beam_2.wrapped_beam.rays[:, 9] == 1)
+
+            if   len(go_beam_2[0]) < len(go_beam_1[0]): go_beam_1 = go_beam_1[0][0 : len(go_beam_2[0])]
+            elif len(go_beam_2[0]) > len(go_beam_1[0]): go_beam_2 = go_beam_2[0][0 : len(go_beam_1[0])]
+
+            beam_2.wrapped_beam.rays[go_beam_2, 0] = beam_1.wrapped_beam.rays[go_beam_1, 2] # tangential component 1 becomes the sagittal 2
+            beam_2.wrapped_beam.rays[go_beam_2, 3] = beam_1.wrapped_beam.rays[go_beam_1, 5]
+
+            return beam_2
+
+        geometry_analysis = HybridGeometryAnalysis()
+        if kb_mirror_1_result.geometry_analysis.has_result(HybridGeometryAnalysis.BEAM_NOT_CUT_TANGENTIALLY):
+            geometry_analysis.add_analysis_result(HybridGeometryAnalysis.BEAM_NOT_CUT_SAGITTALLY)
+        if kb_mirror_2_result.geometry_analysis.has_result(HybridGeometryAnalysis.BEAM_NOT_CUT_TANGENTIALLY):
+            geometry_analysis.add_analysis_result(HybridGeometryAnalysis.BEAM_NOT_CUT_TANGENTIALLY)
+
+        return HybridCalculationResult(far_field_beam=merge_beams(kb_mirror_1_result.far_field_beam, kb_mirror_2_result.far_field_beam),
+                                       near_field_beam=merge_beams(kb_mirror_1_result.near_field_beam, kb_mirror_2_result.near_field_beam),
+                                       divergence_sagittal=kb_mirror_1_result.divergence_tangential,
+                                       divergence_tangential=kb_mirror_2_result.divergence_tangential,
+                                       position_sagittal=kb_mirror_1_result.position_tangential,
+                                       position_tangential=kb_mirror_2_result.position_tangential,
+                                       geometry_analysis=geometry_analysis)
+
+
 # -------------------------------------------------------------
 # HYBRID SCREENS IMPLEMENTATION CLASSES
 # -------------------------------------------------------------
 
 class S4SimpleApertureHybridScreen(_S4ApertureHybridScreen, AbstractSimpleApertureHybridScreen):
-    def __init__(self, wave_optics_provider : HybridWaveOpticsProvider):
-        AbstractSimpleApertureHybridScreen.__init__(self, wave_optics_provider)
+    def __init__(self, wave_optics_provider : HybridWaveOpticsProvider, **kwargs):
+        AbstractSimpleApertureHybridScreen.__init__(self, wave_optics_provider, **kwargs)
 
 class S4MirrorOrGratingSizeHybridScreen(_S4OEWithSurfaceHybridScreen, AbstractMirrorOrGratingSizeHybridScreen):
-    def __init__(self, wave_optics_provider: HybridWaveOpticsProvider):
-        AbstractMirrorOrGratingSizeHybridScreen.__init__(self, wave_optics_provider)
+    def __init__(self, wave_optics_provider: HybridWaveOpticsProvider, **kwargs):
+        AbstractMirrorOrGratingSizeHybridScreen.__init__(self, wave_optics_provider, **kwargs)
 
 class S4MirrorSizeAndErrorHybridScreen(_S4OEWithSurfaceAndErrorHybridScreen, AbstractMirrorSizeAndErrorHybridScreen):
-    def __init__(self, wave_optics_provider: HybridWaveOpticsProvider):
-        AbstractMirrorSizeAndErrorHybridScreen.__init__(self, wave_optics_provider)
+    def __init__(self, wave_optics_provider: HybridWaveOpticsProvider, **kwargs):
+        AbstractMirrorSizeAndErrorHybridScreen.__init__(self, wave_optics_provider, **kwargs)
 
 class S4GratingSizeAndErrorHybridScreen(_S4OEWithSurfaceAndErrorHybridScreen, AbstractGratingSizeAndErrorHybridScreen):
-    def __init__(self, wave_optics_provider: HybridWaveOpticsProvider):
-        AbstractGratingSizeAndErrorHybridScreen.__init__(self, wave_optics_provider)
+    def __init__(self, wave_optics_provider: HybridWaveOpticsProvider, **kwargs):
+        AbstractGratingSizeAndErrorHybridScreen.__init__(self, wave_optics_provider, **kwargs)
 
 class S4CRLSizeHybridScreen(_S4OELensHybridScreen, AbstractCRLSizeHybridScreen):
-    def __init__(self, wave_optics_provider: HybridWaveOpticsProvider):
-        AbstractCRLSizeHybridScreen.__init__(self, wave_optics_provider)
+    def __init__(self, wave_optics_provider: HybridWaveOpticsProvider, **kwargs):
+        AbstractCRLSizeHybridScreen.__init__(self, wave_optics_provider, **kwargs)
 
 class S4CRLSizeAndErrorHybridScreen(_S4OELensAndErrorHybridScreen, AbstractCRLSizeAndErrorHybridScreen):
-    def __init__(self, wave_optics_provider: HybridWaveOpticsProvider):
-        AbstractCRLSizeAndErrorHybridScreen.__init__(self, wave_optics_provider)
+    def __init__(self, wave_optics_provider: HybridWaveOpticsProvider, **kwargs):
+        AbstractCRLSizeAndErrorHybridScreen.__init__(self, wave_optics_provider, **kwargs)
+
+class S4KBMirrorSizeHybridScreen(_S4OEKBMirrorHybridScreen, AbstractKBMirrorSizeHybridScreen):
+    def __init__(self, wave_optics_provider: HybridWaveOpticsProvider, implementation: str, **kwargs):
+        AbstractKBMirrorSizeHybridScreen.__init__(self, wave_optics_provider, implementation, **kwargs)
+
+class S4KBMirrorSizeAndErrorHybridScreen(_S4OEKBMirrorHybridScreen, AbstractKBMirrorSizeAndErrorHybridScreen):
+    def __init__(self, wave_optics_provider: HybridWaveOpticsProvider, implementation: str, **kwargs):
+        AbstractKBMirrorSizeAndErrorHybridScreen.__init__(self, wave_optics_provider, implementation, **kwargs)
 
 
 # -------------------------------------------------------------
@@ -696,7 +760,6 @@ class S4HybridScreen(OpticalElement):
         self.__calculation_type = calculation_type
 
         super(S4HybridScreen, self).__init__(name=self.__hybrid_screen.__class__.__qualname__,  boundary_shape=None)
-
 
     def _get_hybrid_screen(self) -> _ShadowOEHybridScreen: return self.__hybrid_screen
     def _get_calculation_type(self) -> HybridCalculationType: return self.__calculation_type
@@ -732,21 +795,32 @@ class S4HybridScreenElement(S4BeamlineElement):
         txt += "\nfrom shadow4_hybrid.s4_hybrid_screen import S4HybridBeam, S4HybridOE, HybridInputParameters, S4HybridScreenElement"
         txt += self.get_optical_element().to_python_code()
 
-        txt += "\n\nadditional_parameters = {\"beamline\" : beamline}"
+        txt += "\n\nadditional_parameters = {}"
 
         if calculation_type == HybridCalculationType.CRL_SIZE_AND_ERROR_PROFILE:
             txt += "\nadditional_parameters[\"crl_error_profiles\"] = %s" % input_parameters.get("crl_error_profiles")
+            txt += "\nadditional_parameters[\"crl_error_profiles\"] = %s" % input_parameters.get("crl_error_profiles")
             if not input_parameters.get("crl_material") is None:
-                txt += "\nadditional_parameters[\"crl_material\"] = '%s'" % input_parameters.get("crl_material")
+                txt += "\nadditional_parameters[\"crl_material\"] = %s" % input_parameters.get("crl_material")
             else:
                 txt += "\nadditional_parameters[\"crl_delta\"] = %g" % input_parameters.get("crl_delta")
             txt += "\nadditional_parameters[\"crl_scaling_factor\"] = %g" % input_parameters.get("crl_scaling_factor")
             txt += "\nadditional_parameters[\"crl_coords_to_m\"]    = %g" % input_parameters.get("crl_coords_to_m")
             txt += "\nadditional_parameters[\"crl_thickness_to_m\"] = %g" % input_parameters.get("crl_thickness_to_m")
 
+        if calculation_type in [HybridCalculationType.KB_SIZE, HybridCalculationType.KB_SIZE_AND_ERROR_PROFILE]:
+            txt += "\nkb_mirror_1_element = beamline.get_beamline_element_at(-2)"
+            txt += "\nkb_mirror_2_element = beamline.get_beamline_element_at(-1)"
+        else:
+            txt += "\nhybrid_beamline_element = beamline.get_beamline_element_at(-1)"
+
         txt += "\ninput_parameters = HybridInputParameters(listener=StdIOHybridListener(),"
-        txt += "\n                                         beam=S4HybridBeam(beam=beam.duplicate()),"
-        txt += "\n                                         optical_element=S4HybridOE(optical_element=beamline.get_beamline_element_at(-1)),"
+        if calculation_type in [HybridCalculationType.KB_SIZE, HybridCalculationType.KB_SIZE_AND_ERROR_PROFILE]:
+            txt += "\n                                         beam=S4HybridBeam(beam=[kb_mirror_1_element.get_input_beam().duplicate(), kb_mirror_1_element.get_input_beam().duplicate()]),"
+            txt += "\n                                         optical_element=S4HybridOE(optical_element=[kb_mirror_1_element, kb_mirror_1_element]),"
+        else:
+            txt += "\n                                         beam=S4HybridBeam(beam=hybrid_beamline_element.get_input_beam().duplicate()),"
+            txt += "\n                                         optical_element=S4HybridOE(optical_element=hybrid_beamline_element),"
         txt += "\n                                         diffraction_plane=%i," % input_parameters.diffraction_plane
         txt += "\n                                         propagation_type=%i," % input_parameters.propagation_type
         txt += "\n                                         n_bins_x=%i," % input_parameters.n_bins_x
@@ -788,5 +862,7 @@ try:
     hsm.add_hybrid_screen_class(IMPLEMENTATION, S4GratingSizeAndErrorHybridScreen)
     hsm.add_hybrid_screen_class(IMPLEMENTATION, S4CRLSizeHybridScreen)
     hsm.add_hybrid_screen_class(IMPLEMENTATION, S4CRLSizeAndErrorHybridScreen)
+    hsm.add_hybrid_screen_class(IMPLEMENTATION, S4KBMirrorSizeHybridScreen)
+    hsm.add_hybrid_screen_class(IMPLEMENTATION, S4KBMirrorSizeAndErrorHybridScreen)
 except Exception as e:
     print(e)
