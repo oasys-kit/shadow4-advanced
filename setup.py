@@ -50,7 +50,7 @@ __date__ = "2016-now"
 from setuptools import setup
 
 PACKAGES = [
-    "shadow4_hybrid",
+    "shadow4_advanced",
 ]
 
 INSTALL_REQUIRES = (
@@ -58,18 +58,18 @@ INSTALL_REQUIRES = (
     'numpy',
     'scipy',
     'syned>=1.0.30',
-    'srxraylib',
+    'srxraylib>=1.0.46',
     'wofryimpl>=1.0.26',
     'shadow4>=0.1.24',
     'shadow-hybrid-methods>=1.0.4',
 )
 
-setup(name='shadow4-hybrid',
-      version='0.0.7',
-      description='shadow/hybrid implementation in python',
+setup(name='shadow4-advanced',
+      version='0.0.1',
+      description='advanced tools for shadow4 in python',
       author='Manuel Sanchez del Rio, Luca Rebuffi, Xianbo Shi',
       author_email='lrebuffi@anl.gov',
-      url='https://github.com/oasys-kit/shadow4-hybrid/',
+      url='https://github.com/oasys-kit/shadow4-advanced/',
       packages=PACKAGES,
       install_requires=INSTALL_REQUIRES,
      )
