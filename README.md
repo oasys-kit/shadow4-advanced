@@ -1,2 +1,2 @@
-# shadow4-hybrid
-implementation of hybrid methods for Shadow4
+# shadow4-advanced
+implementation of advanced tools for Shadow4
