@@ -1,0 +1,4 @@
+recursive-include shadow4_advanced *.pyx
+recursive-include shadow4_advanced *.py
+
+include README.md

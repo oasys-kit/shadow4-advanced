@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="PYTHON_MODULE" version="4">
+  <component name="NewModuleRootManager">
+    <content url="file://$MODULE_DIR$" />
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="module" module-name="sr-xraylib" />
+    <orderEntry type="module" module-name="syned" />
+    <orderEntry type="module" module-name="wofry" />
+    <orderEntry type="module" module-name="wofryimpl" />
+    <orderEntry type="module" module-name="shadow4" />
+    <orderEntry type="module" module-name="hybrid-methods" />
+  </component>
+</module>

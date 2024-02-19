@@ -51,6 +51,8 @@ from setuptools import setup
 
 PACKAGES = [
     "shadow4_advanced",
+    "shadow4_advanced.hybrid",
+    "shadow4_advanced.benders"
 ]
 
 INSTALL_REQUIRES = (
@@ -65,7 +67,7 @@ INSTALL_REQUIRES = (
 )
 
 setup(name='shadow4-advanced',
-      version='0.0.1',
+      version='0.0.2',
       description='advanced tools for shadow4 in python',
       author='Manuel Sanchez del Rio, Luca Rebuffi, Xianbo Shi',
       author_email='lrebuffi@anl.gov',
