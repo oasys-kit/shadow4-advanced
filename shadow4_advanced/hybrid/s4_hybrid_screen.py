@@ -747,7 +747,7 @@ class S4HybridScreen(OpticalElement):
     def _get_calculation_type(self) -> HybridCalculationType: return self.__calculation_type
 
     def to_python_code(self, **kwargs):
-        txt = "\nfrom shadow4_hybrid.s4_hybrid_screen import S4HybridScreen"
+        txt = "\nfrom shadow4_advanced.hybrid.s4_hybrid_screen import S4HybridScreen"
         txt += "\n\ncalculation_type=%i" % self.__calculation_type
         txt += "\nhybrid_screen = S4HybridScreen(calculation_type)\n"
 
@@ -766,7 +766,13 @@ class S4HybridScreenElement(S4BeamlineElement):
         hybrid_screen    = self.get_optical_element()._get_hybrid_screen()
         input_parameters = self.__hybrid_input_parameters
 
-        return hybrid_screen.run_hybrid_method(input_parameters), None
+        hybrid_result: HybridCalculationResult = hybrid_screen.run_hybrid_method(input_parameters)
+
+        if input_parameters.propagation_type == HybridPropagationType.FAR_FIELD:    beam = hybrid_result.far_field_beam.wrapped_beam
+        elif input_parameters.propagation_type == HybridPropagationType.NEAR_FIELD: beam = hybrid_result.near_field_beam.wrapped_beam
+        elif input_parameters.propagation_type == HybridPropagationType.BOTH:       beam = [hybrid_result.far_field_beam.wrapped_beam, hybrid_result.near_field_beam.wrapped_beam]
+
+        return beam, None, hybrid_result
 
     def to_python_code(self, **kwargs):
         calculation_type = self.get_optical_element()._get_calculation_type()
@@ -774,7 +780,7 @@ class S4HybridScreenElement(S4BeamlineElement):
 
         txt = "\n\n# optical element number XX"
         txt += "\nfrom hybrid_methods.coherence.hybrid_screen import StdIOHybridListener"
-        txt += "\nfrom shadow4_hybrid.s4_hybrid_screen import S4HybridBeam, S4HybridOE, HybridInputParameters, S4HybridScreenElement"
+        txt += "\nfrom shadow4_advanced.hybrid.s4_hybrid_screen import S4HybridBeam, S4HybridOE, HybridInputParameters, S4HybridScreenElement"
         txt += self.get_optical_element().to_python_code()
 
         txt += "\n\nadditional_parameters = {}"
@@ -798,7 +804,7 @@ class S4HybridScreenElement(S4BeamlineElement):
         txt += "\ninput_parameters = HybridInputParameters(listener=StdIOHybridListener(),"
         if calculation_type in [HybridCalculationType.KB_SIZE, HybridCalculationType.KB_SIZE_AND_ERROR_PROFILE]:
             txt += "\n                                         beam=S4HybridBeam(beam=[kb_mirror_2_element.get_input_beam(), beam]),"
-            txt += "\n                                         optical_element=S4HybridOE(optical_element=[kb_mirror_1_element, kb_mirror_1_element]),"
+            txt += "\n                                         optical_element=S4HybridOE(optical_element=[kb_mirror_1_element, kb_mirror_2_element]),"
         else:
             txt += "\n                                         beam=S4HybridBeam(beam=beam),"
             txt += "\n                                         optical_element=S4HybridOE(optical_element=hybrid_beamline_element),"
@@ -813,16 +819,11 @@ class S4HybridScreenElement(S4BeamlineElement):
         txt += "\n                                         **additional_parameters)"
         txt += "\n\nbeamline_element = S4HybridScreenElement(hybrid_screen=hybrid_screen, hybrid_input_parameters=input_parameters)"
 
-        txt += "\n\nhybrid_result, _ = beamline_element.trace_beam()"
-        if input_parameters.propagation_type == HybridPropagationType.FAR_FIELD:
-            txt +="\nbeam=hybrid_result.far_field_beam.wrapped_beam"
-        elif input_parameters.propagation_type == HybridPropagationType.NEAR_FIELD:
-            txt +="\nbeam=hybrid_result.near_field_beam.wrapped_beam"
-        else:
-            txt +="\nbeam_ff=hybrid_result.far_field_beam.wrapped_beam"
-            txt +="\nbeam_nf=hybrid_result.near_field_beam.wrapped_beam"
+        txt += "\n\nbeam, mirr, _ = beamline_element.trace_beam()"
+        if input_parameters.propagation_type == HybridPropagationType.BOTH:
+            txt +="\nbeam_ff=beam[0]"
+            txt +="\nbeam_nf=beam[1]"
             txt +="\nbeam=beam_ff #change to nf if desired"
-        txt +="\nmirr=None"
 
         return txt
 
