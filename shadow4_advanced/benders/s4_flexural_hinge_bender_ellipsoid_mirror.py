@@ -119,15 +119,18 @@ class S4FlexuralHingeBenderEllipsoidMirror(S4AdditionalNumericalMeshMirror):
             zz     = figure_error.get_mesh_z()
             self._figure_error_mesh = xx, yy, zz
 
+        grazing_angle = surface_shape.get_grazing_angle()
+        p, q          = surface_shape.get_p_q(grazing_angle)
+
         bender_structural_parameters = FlexuralHingeBenderStructuralParameters(dim_x_minus=dim_x_minus,
                                                                                dim_x_plus=dim_x_plus,
                                                                                bender_bin_x=self._bender_bin_x,
                                                                                dim_y_minus=dim_y_minus,
                                                                                dim_y_plus=dim_y_plus,
                                                                                bender_bin_y=self._bender_bin_y,
-                                                                               p=surface_shape.get_p_focus(),
-                                                                               q=surface_shape.get_q_focus(),
-                                                                               grazing_angle=surface_shape.get_grazing_angle(),
+                                                                               p=p,
+                                                                               q=q,
+                                                                               grazing_angle=grazing_angle,
                                                                                E=self._E,
                                                                                h=self._h,
                                                                                M1=self._M1,
@@ -143,7 +146,12 @@ class S4FlexuralHingeBenderEllipsoidMirror(S4AdditionalNumericalMeshMirror):
         else:                              bender_manager = FlexuralHingeCalibratedBenderManager(bender_structural_parameters=bender_structural_parameters, calibration_parameters=calibration_parameters)
 
         if not fit_to_focus_parameters is None: bender_data = bender_manager.fit_bender_at_focus_position(fit_to_focus_parameters)
-        elif not bender_movement is None:       bender_data = bender_manager.get_bender_shape_from_movement(bender_movement)
+        elif not bender_movement is None:
+            bender_data = bender_manager.get_bender_shape_from_movement(bender_movement)
+            q           = bender_manager.get_q_ideal_surface(bender_movement)
+
+            # modification of the shape of the mirror with the average q
+            ellipsoid_mirror.get_surface_shape().initialize_from_p_q(p, q, grazing_angle)
 
         S4AdditionalNumericalMeshMirror.__init__(ideal_mirror=ellipsoid_mirror,
                                                  numerical_mesh_mirror=S4NumericalMeshMirror(boundary_shape=ellipsoid_mirror.get_boundary_shape(),
