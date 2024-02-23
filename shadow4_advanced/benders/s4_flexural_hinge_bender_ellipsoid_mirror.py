@@ -203,9 +203,10 @@ class S4FlexuralHingeBenderEllipsoidMirror(S4AdditionalNumericalMeshMirror):
         if self._calibration_parameters is None:
             txt += "\ncalibration_parameters = None"
         else:
+            p0u, p1u = self._calibration_parameters.upstream
+            p0d, p1d = self._calibration_parameters.downstream
             txt += "\nfrom srxraylib.profiles.benders.flexural_hinge_bender_manager import CalibrationParameters"
-            txt += "\n\ncalibration_parameters = CalibrationParameters(parameters_upstream=["+', '.join(['%g']*len(self._calibration_parameters.upstream))+"]," % tuple(self._calibration_parameters.upstream)
-            txt += "\n                                               parameters_downstream["+', '.join(['%g']*len(self._calibration_parameters.downstream))+"])" % tuple(self._calibration_parameters.downstream)
+            txt += f"\n\ncalibration_parameters = CalibrationParameters(parameters_upstream=[{p0u}, {p1u}], parameters_downstream=[{p0d}, {p1d}])"
 
         txt += "\n\noptical_element = S4FlexuralHingeBenderEllipsoidMirror(ellipsoid_mirror=ellipsoid_mirror,"
         txt += f"\n                                                       figure_error_data_file={self._figure_error_data_file},"
@@ -217,7 +218,7 @@ class S4FlexuralHingeBenderEllipsoidMirror(S4AdditionalNumericalMeshMirror):
         txt += "\n                                                       e=e,"
         txt += "\n                                                       ratio=ratio,"
         txt += f"\n                                                       bender_shape={self._bender_shape},"
-        txt += f"\n                                                       bender_type={self._bender_movement},"
+        txt += f"\n                                                       bender_type={self._bender_type},"
         txt += "\n                                                       calibration_parameters=calibration_parameters,"
         txt += "\n                                                       fit_to_focus_parameters=fit_to_focus_parameters,"
         txt += "\n                                                       bender_movement=bender_movement)"
