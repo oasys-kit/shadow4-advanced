@@ -142,12 +142,13 @@ class S4FlexuralHingeBenderEllipsoidMirror(S4AdditionalNumericalMeshMirror):
                                                                                workspace_units_to_m=1.0,
                                                                                workspace_units_to_mm=1000.0)
 
-        if calibration_parameters is None: bender_manager = FlexuralHingeStandardBenderManager(bender_structural_parameters=bender_structural_parameters)
-        else:                              bender_manager = FlexuralHingeCalibratedBenderManager(bender_structural_parameters=bender_structural_parameters, calibration_parameters=calibration_parameters)
-
         if not fit_to_focus_parameters is None:
+            bender_manager = FlexuralHingeStandardBenderManager(bender_structural_parameters=bender_structural_parameters)
             bender_data = bender_manager.fit_bender_at_focus_position(fit_to_focus_parameters)
         elif not bender_movement is None:
+            if calibration_parameters is None: bender_manager = FlexuralHingeStandardBenderManager(bender_structural_parameters=bender_structural_parameters)
+            else:                              bender_manager = FlexuralHingeCalibratedBenderManager(bender_structural_parameters=bender_structural_parameters, calibration_parameters=calibration_parameters)
+
             bender_data = bender_manager.get_bender_shape_from_movement(bender_movement)
             q           = bender_manager.get_q_ideal_surface(bender_movement)
 
