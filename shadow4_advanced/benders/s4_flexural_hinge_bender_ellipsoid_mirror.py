@@ -209,7 +209,7 @@ class S4FlexuralHingeBenderEllipsoidMirror(S4AdditionalNumericalMeshMirror):
             txt += f"\n\ncalibration_parameters = CalibrationParameters(parameters_upstream=[{p0u}, {p1u}], parameters_downstream=[{p0d}, {p1d}])"
 
         txt += "\n\noptical_element = S4FlexuralHingeBenderEllipsoidMirror(ellipsoid_mirror=ellipsoid_mirror,"
-        txt += f"\n                                                       figure_error_data_file={self._figure_error_data_file},"
+        txt += "\n                                                       figure_error_data_file=" + ("None" if self._figure_error_data_file is None else ("'" + self._figure_error_data_file + "'"))   + ","
         txt += f"\n                                                       bender_bin_x={self._bender_bin_x},"
         txt += f"\n                                                       bender_bin_y={self._bender_bin_y},"
         txt += f"\n                                                       E={self._E},"
