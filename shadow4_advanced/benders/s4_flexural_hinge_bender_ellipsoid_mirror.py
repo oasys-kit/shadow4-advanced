@@ -108,7 +108,7 @@ class S4FlexuralHingeBenderEllipsoidMirror(S4AdditionalNumericalMeshMirror):
         else:
             raise ValueError("Specify fit to focus or bender movement")
 
-        dim_x_minus, dim_x_plus, dim_y_minus, dim_y_plus = boundary_shape.get_boundaries()
+        x_left, x_right, y_bottom, y_top = boundary_shape.get_boundaries()
 
         if figure_error_data_file is None:
             self._figure_error_mesh = None
@@ -122,11 +122,11 @@ class S4FlexuralHingeBenderEllipsoidMirror(S4AdditionalNumericalMeshMirror):
         grazing_angle = surface_shape.get_grazing_angle()
         p, q          = surface_shape.get_p_q(grazing_angle)
 
-        bender_structural_parameters = FlexuralHingeBenderStructuralParameters(dim_x_minus=dim_x_minus,
-                                                                               dim_x_plus=dim_x_plus,
+        bender_structural_parameters = FlexuralHingeBenderStructuralParameters(dim_x_minus=-x_left,
+                                                                               dim_x_plus=x_right,
                                                                                bender_bin_x=self._bender_bin_x,
-                                                                               dim_y_minus=dim_y_minus,
-                                                                               dim_y_plus=dim_y_plus,
+                                                                               dim_y_minus=-y_bottom,
+                                                                               dim_y_plus=y_top,
                                                                                bender_bin_y=self._bender_bin_y,
                                                                                p=p,
                                                                                q=q,
@@ -145,7 +145,8 @@ class S4FlexuralHingeBenderEllipsoidMirror(S4AdditionalNumericalMeshMirror):
         if calibration_parameters is None: bender_manager = FlexuralHingeStandardBenderManager(bender_structural_parameters=bender_structural_parameters)
         else:                              bender_manager = FlexuralHingeCalibratedBenderManager(bender_structural_parameters=bender_structural_parameters, calibration_parameters=calibration_parameters)
 
-        if not fit_to_focus_parameters is None: bender_data = bender_manager.fit_bender_at_focus_position(fit_to_focus_parameters)
+        if not fit_to_focus_parameters is None:
+            bender_data = bender_manager.fit_bender_at_focus_position(fit_to_focus_parameters)
         elif not bender_movement is None:
             bender_data = bender_manager.get_bender_shape_from_movement(bender_movement)
             q           = bender_manager.get_q_ideal_surface(bender_movement)
@@ -153,11 +154,12 @@ class S4FlexuralHingeBenderEllipsoidMirror(S4AdditionalNumericalMeshMirror):
             # modification of the shape of the mirror with the average q
             ellipsoid_mirror.get_surface_shape().initialize_from_p_q(p, q, grazing_angle)
 
-        S4AdditionalNumericalMeshMirror.__init__(ideal_mirror=ellipsoid_mirror,
+        S4AdditionalNumericalMeshMirror.__init__(self,
+                                                 ideal_mirror=ellipsoid_mirror,
                                                  numerical_mesh_mirror=S4NumericalMeshMirror(boundary_shape=ellipsoid_mirror.get_boundary_shape(),
                                                                                              xx=bender_data.x,
                                                                                              yy=bender_data.y,
-                                                                                             zz=bender_data.z_bender_correction),
+                                                                                             zz=bender_data.z_bender_correction.T),
                                                  name=ellipsoid_mirror.get_name())
         self._bender_data = bender_data
 
@@ -226,7 +228,7 @@ class S4FlexuralHingeBenderEllipsoidMirror(S4AdditionalNumericalMeshMirror):
 
 class S4FlexuralHingeBenderEllipsoidMirrorElement(S4AdditionalNumericalMeshMirrorElement):
     def __init__(self,
-                 optical_element: S4FlexuralHingeBenderEllipsoidMirror,
+                 optical_element: S4FlexuralHingeBenderEllipsoidMirror=None,
                  coordinates: ElementCoordinates = None,
                  movements: S4BeamlineElementMovements = None,
                  input_beam: S4Beam = None):
@@ -235,6 +237,7 @@ class S4FlexuralHingeBenderEllipsoidMirrorElement(S4AdditionalNumericalMeshMirro
                          movements=movements,
                          input_beam=input_beam)
 
+    def to_python_code(self, **kwargs):
         txt = "\n\n# optical element number XX"
         txt += self.get_optical_element().to_python_code()
         coordinates = self.get_coordinates()
