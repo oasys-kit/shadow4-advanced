@@ -60,14 +60,14 @@ INSTALL_REQUIRES = (
     'numpy',
     'scipy',
     'syned>=1.0.30',
-    'srxraylib>=1.0.48',
+    'srxraylib>=1.0.49',
     'wofryimpl>=1.0.26',
     'shadow4>=0.1.24',
     'shadow-hybrid-methods>=1.0.7',
 )
 
 setup(name='shadow4-advanced',
-      version='0.0.5',
+      version='0.0.6',
       description='advanced tools for shadow4 in python',
       author='Manuel Sanchez del Rio, Luca Rebuffi, Xianbo Shi',
       author_email='lrebuffi@anl.gov',
