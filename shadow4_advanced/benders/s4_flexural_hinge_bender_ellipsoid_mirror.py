@@ -164,6 +164,11 @@ class S4FlexuralHingeBenderEllipsoidMirror(S4AdditionalNumericalMeshMirror):
                                                  name=ellipsoid_mirror.get_name())
         self._bender_data = bender_data
 
+    @property
+    def bender_movement(self) -> BenderMovement: return self._bender_movement
+    @property
+    def calibration_parameters(self) -> CalibrationParameters: return self._calibration_parameters
+
     def get_bender_data(self) -> BenderOuputData: return self._bender_data
 
     def to_python_code(self, **kwargs):
