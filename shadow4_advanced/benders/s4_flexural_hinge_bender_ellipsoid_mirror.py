@@ -50,6 +50,7 @@ from srxraylib.profiles.benders.flexural_hinge_bender_manager import FlexuralHin
 
 from syned.beamline.shape import EllipticalCylinder, Rectangle
 from syned.beamline.element_coordinates import ElementCoordinates
+from syned.beamline.shape import NumericalMesh
 
 from shadow4.beam.s4_beam import S4Beam
 from shadow4.optical_surfaces.s4_mesh import S4Mesh
@@ -75,7 +76,6 @@ class S4FlexuralHingeBenderEllipsoidMirror(S4AdditionalNumericalMeshMirror):
                  fit_to_focus_parameters: FlexuralHingeBenderFitParameters=None,
                  bender_movement: BenderMovement=None):
         assert ellipsoid_mirror is not None
-
         surface_shape  = ellipsoid_mirror.get_surface_shape()
         boundary_shape = ellipsoid_mirror.get_boundary_shape()
 
@@ -144,7 +144,7 @@ class S4FlexuralHingeBenderEllipsoidMirror(S4AdditionalNumericalMeshMirror):
 
         if not fit_to_focus_parameters is None:
             bender_manager = FlexuralHingeStandardBenderManager(bender_structural_parameters=bender_structural_parameters)
-            bender_data = bender_manager.fit_bender_at_focus_position(fit_to_focus_parameters)
+            bender_data = self._bender_manager.fit_bender_at_focus_position(fit_to_focus_parameters)
         elif not bender_movement is None:
             if calibration_parameters is None: bender_manager = FlexuralHingeStandardBenderManager(bender_structural_parameters=bender_structural_parameters)
             else:                              bender_manager = FlexuralHingeCalibratedBenderManager(bender_structural_parameters=bender_structural_parameters, calibration_parameters=calibration_parameters)
@@ -162,7 +162,28 @@ class S4FlexuralHingeBenderEllipsoidMirror(S4AdditionalNumericalMeshMirror):
                                                                                              yy=bender_data.y,
                                                                                              zz=bender_data.z_bender_correction.T),
                                                  name=ellipsoid_mirror.get_name())
-        self._bender_data = bender_data
+        self._bender_data      = bender_data
+        self._bender_manager   = bender_manager
+        self._ellipsoid_mirror = ellipsoid_mirror
+
+    def move_bender(self, bender_movement: BenderMovement):
+        if self._bender_movement is None: raise ValueError("This bender has been initialized to fit to focus")
+
+        bender_data = self._bender_manager.get_bender_shape_from_movement(bender_movement)
+        q           = self._bender_manager.get_q_ideal_surface(bender_movement)
+
+        surface_shape  = self._ellipsoid_mirror.get_surface_shape()
+
+        grazing_angle = surface_shape.get_grazing_angle()
+        p, _          = surface_shape.get_p_q(grazing_angle)
+
+        # modification of the shape of the mirror with the average q
+        self._ellipsoid_mirror.get_surface_shape().initialize_from_p_q(p, q, grazing_angle)
+
+        numerical_mesh: NumericalMesh = self.get_surface_shape_instance() # numerical mesh
+        numerical_mesh._xx = bender_data.x
+        numerical_mesh._yy = bender_data.y
+        numerical_mesh._zz = bender_data.z_bender_correction.T
 
     @property
     def bender_movement(self) -> BenderMovement: return self._bender_movement
