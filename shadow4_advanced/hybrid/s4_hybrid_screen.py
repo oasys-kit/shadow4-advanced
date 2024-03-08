@@ -480,8 +480,7 @@ class _S4OEWithSurfaceHybridScreen(_ShadowOEHybridScreen):
 
         # mirror movement:
         movements = beamline_element.get_movements()
-        if movements is not None:
-            if movements.f_move:
+        if movements is not None and movements.f_move==1:
                 input_beam.rot_for(OFFX=movements.offset_x,
                                    OFFY=movements.offset_y,
                                    OFFZ=movements.offset_z,
