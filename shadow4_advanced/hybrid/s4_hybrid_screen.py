@@ -492,8 +492,8 @@ class _S4OEWithSurfaceHybridScreen(_ShadowOEHybridScreen):
         #
         v_in = input_beam.get_columns([4, 5, 6])
 
-        if   isinstance(beamline_element, S4MirrorElement):  _, normal = optical_element.apply_mirror_reflection(input_beam)
-        elif isinstance(beamline_element, S4GratingElement): _, normal = optical_element.apply_grating_diffraction(input_beam)
+        if   isinstance(beamline_element, S4MirrorElement):  _, normal = optical_element._apply_mirror_reflection(input_beam)
+        elif isinstance(beamline_element, S4GratingElement): _, normal = beamline_element.apply_grating_diffraction(input_beam)
 
         v_out = input_beam.get_columns([4, 5, 6])
 
