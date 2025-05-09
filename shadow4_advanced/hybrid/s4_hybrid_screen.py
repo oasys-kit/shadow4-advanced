@@ -660,7 +660,7 @@ class _S4OELensAndErrorHybridScreen(_S4OELensHybridScreen):
         x_coords, y_coords = numerical_mesh.get_mesh_x_y()
         z_values           = numerical_mesh.get_mesh_z()
 
-        return ScaledMatrix(x_coords*coords_to_m, y_coords*coords_to_m, z_values.T*thickness_to_m)
+        return ScaledMatrix(x_coords*coords_to_m, y_coords*coords_to_m, z_values*thickness_to_m)
 
 class _S4OEKBMirrorHybridScreen():
     def _modify_image_plane_distance_on_kb_1(self, kb_mirror_1: S4BeamlineElement, kb_mirror_2: S4BeamlineElement):

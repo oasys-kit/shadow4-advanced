@@ -67,7 +67,7 @@ INSTALL_REQUIRES = (
 )
 
 setup(name='shadow4-advanced',
-      version='0.0.12',
+      version='0.0.13',
       description='advanced tools for shadow4 in python',
       author='Manuel Sanchez del Rio, Luca Rebuffi, Xianbo Shi',
       author_email='lrebuffi@anl.gov',
