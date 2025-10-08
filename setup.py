@@ -62,7 +62,7 @@ INSTALL_REQUIRES = (
     'syned>=1.0.42',
     'srxraylib>=1.0.63',
     'wofryimpl>=1.0.33',
-    'shadow4>=0.1.61',
+    'shadow4>=0.1.62',
     'shadow-hybrid-methods>=1.0.14',
 )
 
