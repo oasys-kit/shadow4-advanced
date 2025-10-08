@@ -59,11 +59,11 @@ INSTALL_REQUIRES = (
     'setuptools',
     'numpy',
     'scipy',
-    'syned>=1.0.30',
-    'srxraylib>=1.0.58',
-    'wofryimpl>=1.0.26',
-    'shadow4>=0.1.54',
-    'shadow-hybrid-methods>=1.0.9',
+    'syned>=1.0.42',
+    'srxraylib>=1.0.63',
+    'wofryimpl>=1.0.33',
+    'shadow4>=0.1.61',
+    'shadow-hybrid-methods>=1.0.14',
 )
 
 setup(name='shadow4-advanced',
