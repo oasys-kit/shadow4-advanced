@@ -4,7 +4,6 @@
     <content url="file://$MODULE_DIR$" />
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="module" module-name="sr-xraylib" />
     <orderEntry type="module" module-name="syned" />
     <orderEntry type="module" module-name="wofry" />
     <orderEntry type="module" module-name="wofryimpl" />
