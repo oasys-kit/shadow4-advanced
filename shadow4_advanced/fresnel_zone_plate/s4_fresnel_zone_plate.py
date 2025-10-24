@@ -85,7 +85,6 @@ class S4FresnelZonePlate(HybridFresnelZonePlate, OpticalElement, S4OpticalElemen
         OpticalElement.__init__(self, name=name, boundary_shape=Circle(radius=0.5*attributes.diameter))
         self.__input_parameters = input_parameters
         self.__source_distance = None
-
         self.__input_beam      = None
 
     @property
@@ -106,16 +105,48 @@ class S4FresnelZonePlate(HybridFresnelZonePlate, OpticalElement, S4OpticalElemen
     def input_beam(self, input_beam): self.__input_beam = input_beam
 
     def to_python_code(self, **kwargs):
-        txt_pre = """
+        options : FZPSimulatorOptions = self._simulator.options
+        attributes : FZPAttributes    = self._simulator.attributes
 
-        from shadow4_advanced.fresnel_zone_plate import S4FresnelZonePlate
-        optical_element = S4FresnelZonePlate(name='{name:s}')
-        #TODO: complete the code
-        
+        txt = f"""
+
+from shadow4_advanced.fresnel_zone_plate.s4_fresnel_zone_plate import S4FresnelZonePlate
+from hybrid_methods.fresnel_zone_plate.hybrid_fresnel_zone_plate import FZPAttributes, FZPSimulatorOptions, FZPCalculationInputParameters
+
+input_parameters = FZPCalculationInputParameters(source_distance={self.calculation_input_parameters.source_distance},
+                                                 image_distance={self.calculation_input_parameters.image_distance},
+                                                 n_points={self.calculation_input_parameters.n_points},
+                                                 multipool={self.calculation_input_parameters.multipool},
+                                                 profile_last_index={self.calculation_input_parameters.profile_last_index},
+                                                 increase_resolution={self.calculation_input_parameters.increase_resolution},
+                                                 increase_points={self.calculation_input_parameters.increase_points})
+options = FZPSimulatorOptions(with_central_stop={options.with_central_stop},
+                              cs_diameter={options.cs_diameter},
+                              with_order_sorting_aperture={options.with_order_sorting_aperture},
+                              osa_position={options.osa_position},
+                              osa_diameter={options.osa_diameter},
+                              zone_plate_type={options.zone_plate_type},
+                              width_coating={options.width_coating},
+                              height1_factor={options.height1_factor},
+                              height2_factor={options.height2_factor},
+                              with_range={options.with_range},
+                              with_multi_slicing={options.with_multi_slicing},
+                              n_slices={options.n_slices},
+                              with_complex_amplitude={options.with_complex_amplitude},
+                              store_partial_results={options.store_partial_results})
+attributes = FZPAttributes(height={attributes.height},
+                           diameter={attributes.diameter},
+                           b_min={attributes.b_min},
+                           zone_plate_material='{attributes.zone_plate_material}',
+                           template_material='{attributes.template_material}')
+
+optical_element=S4FresnelZonePlate(name='{self.get_name()}',
+                                   input_parameters=input_parameters,
+                                   options=options,
+                                   attributes=attributes)
+
         """
-        txt = txt_pre.format(**{'name': self.get_name(),
 
-                                })
         return txt
 
     def _get_zone_plate_aperture_beam(self, attributes: FZPAttributes, **kwargs) -> Tuple[S4Beam, float]:
@@ -124,7 +155,7 @@ class S4FresnelZonePlate(HybridFresnelZonePlate, OpticalElement, S4OpticalElemen
                                          input_beam=self.input_beam)
 
         output_beam, _ = screen_element.trace_beam()
-        energy_KeV = 1e-3*round(numpy.average(output_beam.get_photon_energy_eV(nolost=1))),
+        energy_KeV     = 1e-3*round(numpy.average(output_beam.get_photon_energy_eV(nolost=1)))
 
         return output_beam, energy_KeV
 
@@ -200,3 +231,33 @@ class S4FresnelZonePlateElement(S4BeamlineElement):
 
         return zone_plate.run_fzp_hybrid_method(zone_plate.calculation_input_parameters)
 
+    def to_python_code(self, **kwargs):
+        txt = "\n\n# optical element number XX"
+        txt += self.get_optical_element().to_python_code()
+
+        coordinates = self.get_coordinates()
+
+        txt += "\nfrom syned.beamline.element_coordinates import ElementCoordinates"
+        txt += "\n\ncoordinates = ElementCoordinates(p=%g, q=%g, angle_radial=%g, angle_azimuthal=%g, angle_radial_out=%g)" % \
+               (coordinates.p(), coordinates.q(), coordinates.angle_radial(), coordinates.angle_azimuthal(), coordinates.angle_radial_out())
+
+        txt += "\n\nfrom shadow4_advanced.fresnel_zone_plate.s4_fresnel_zone_plate import S4FresnelZonePlateElement"
+        txt += "\n\nbeamline_element = S4FresnelZonePlateElement(optical_element=optical_element, coordinates=coordinates, input_beam=beam)"
+        txt += "\n\nbeam, calculation_result = beamline_element.trace_beam()"
+
+        txt += "\nzone_plate_out           = beamline_element.get_optical_element()"
+
+        txt += "\n\navg_energy      = 1e3 * zone_plate_out.get_energy_in_KeV()"
+        txt += "\nimage_distance  = round(zone_plate_out.zp_image_distance, 6)"
+        txt += "\nnumber_of_zones = zone_plate_out.get_n_zones()"
+        txt += "\nfocal_distance  = round(zone_plate_out.zp_focal_distance, 6)"
+        txt += "\nefficiency      = round(calculation_result.efficiency * 100, 2)"
+
+        txt += "\nprint(\"Average Energy [eV]:\", avg_energy)"
+        txt += "\nprint(\"Image Distance [m] :\", image_distance)"
+        txt += "\nprint(\"Number of Zones    :\", number_of_zones)"
+        txt += "\nprint(\"Focal Distance [m] :\", focal_distance)"
+        txt += "\nprint(\"Efficiency (%)     :\", efficiency)"
+
+
+        return txt

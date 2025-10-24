@@ -52,6 +52,7 @@ from setuptools import setup
 PACKAGES = [
     "shadow4_advanced",
     "shadow4_advanced.hybrid",
+    "shadow4_advanced.fresnel_zone_plate",
     "shadow4_advanced.benders"
 ]
 
@@ -59,15 +60,15 @@ INSTALL_REQUIRES = (
     'setuptools',
     'numpy',
     'scipy',
-    'syned>=1.0.42',
+    'syned>=1.0.47',
     'srxraylib>=1.0.63',
     'wofryimpl>=1.0.33',
     'shadow4>=0.1.67',
-    'shadow-hybrid-methods>=1.0.14',
+    'shadow-hybrid-methods>=1.0.15',
 )
 
 setup(name='shadow4-advanced',
-      version='0.0.14',
+      version='0.0.16',
       description='advanced tools for shadow4 in python',
       author='Manuel Sanchez del Rio, Luca Rebuffi, Xianbo Shi',
       author_email='lrebuffi@anl.gov',
