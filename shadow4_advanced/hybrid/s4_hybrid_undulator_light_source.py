@@ -58,9 +58,23 @@ from shadow4.beam.s4_beam import S4Beam
 from shadow4.sources.source_geometrical.source_geometrical import SourceGeometrical
 
 from hybrid_methods.undulator.hybrid_undulator import (
-    HybridUndulatorCalculator, HybridUndulatorInputParameters, HybridUndulatorOutputParameters, HybridUndulatorListener,
-    _resonance_energy
+    HybridUndulatorCalculator, HybridUndulatorInputParameters,
+    HybridUndulatorOutputParameters, HybridUndulatorListener
 )
+
+####################################################
+# DO NOT REMOVE -> Useful FOR IMPORTS on Widgets
+from hybrid_methods.undulator.hybrid_undulator import (
+    _resonance_energy as resonance_energy,
+    _gamma as gamma,
+    _get_default_initial_z as get_default_initial_z,
+    _is_canted_undulator as is_canted_undulator,
+    _get_source_slit_data as get_source_slit_data,
+    _set_which_waist as set_which_waist,
+)
+#
+####################################################
+
 
 class S4HybridUndulatorLightSource(S4LightSource, HybridUndulatorCalculator):
     def __init__(self,
@@ -132,9 +146,6 @@ class S4HybridUndulatorLightSource(S4LightSource, HybridUndulatorCalculator):
         script += "\nhybrid_input_parameters = HybridUndulatorInputParameters("
         script += f"\n    number_of_rays                                              = {input_parameters.number_of_rays                                             },"
         script += f"\n    seed                                                        = {input_parameters.seed                                                       },"
-        script += f"\n    coherent_beam                                               = {input_parameters.coherent_beam                                              },"
-        script += f"\n    phase_diff                                                  = {input_parameters.phase_diff                                                 },"
-        script += f"\n    polarization_degree                                         = {input_parameters.polarization_degree                                        },"
         script += f"\n    use_harmonic                                                = {input_parameters.use_harmonic                                               },"
         script += f"\n    harmonic_number                                             = {input_parameters.harmonic_number                                            },"
         script += f"\n    energy                                                      = {input_parameters.energy                                                     },"
@@ -222,7 +233,7 @@ class S4HybridUndulatorLightSource(S4LightSource, HybridUndulatorCalculator):
     def _generate_initial_beam(self):
         input_parameters = self.get_input_parameters()
 
-        energy = input_parameters.energy if input_parameters.use_harmonic != 0 else _resonance_energy(input_parameters, harmonic=input_parameters.harmonic_number)
+        energy = input_parameters.energy if input_parameters.use_harmonic != 0 else resonance_energy(input_parameters, harmonic=input_parameters.harmonic_number)
 
         source = SourceGeometrical(
             name="Hybrid Undulator Initial Source",
@@ -234,9 +245,7 @@ class S4HybridUndulatorLightSource(S4LightSource, HybridUndulatorCalculator):
         source.set_angular_distribution_flat(hdiv1=-1.0e-6, hdiv2=1.0e-6, vdiv1= -1.0e-6, vdiv2=1.0e-6)
         source.set_depth_distribution_off()
         source.set_energy_distribution_singleline(value=energy, unit='eV')
-        source.set_polarization(polarization_degree=input_parameters.polarization_degree,
-                                phase_diff=numpy.radians(input_parameters.phase_diff),
-                                coherent_beam=input_parameters.coherent_beam)
+        source.set_polarization(polarization_degree=1.0, phase_diff=0.0, coherent_beam=0.0)
 
         return source.get_beam()
 
