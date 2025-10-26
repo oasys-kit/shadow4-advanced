@@ -63,14 +63,14 @@ INSTALL_REQUIRES = (
     'syned>=1.0.47',
     'srxraylib>=1.0.63',
     'wofryimpl>=1.0.33',
-    'shadow4>=0.1.67',
-    'shadow-hybrid-methods>=1.0.15',
+    'shadow4>=0.1.68',
+    'shadow-hybrid-methods>=1.0.17',
 )
 
 setup(name='shadow4-advanced',
-      version='0.0.16',
+      version='0.0.17',
       description='advanced tools for shadow4 in python',
-      author='Manuel Sanchez del Rio, Luca Rebuffi, Xianbo Shi',
+      author='Luca Rebuffi, Xianbo Shi, Manuel Sanchez del Rio',
       author_email='lrebuffi@anl.gov',
       url='https://github.com/oasys-kit/shadow4-advanced/',
       packages=PACKAGES,
