@@ -85,16 +85,21 @@ class S4HybridUndulatorLightSource(S4LightSource, HybridUndulatorCalculator):
         if hybrid_input_parameters is None: raise ValueError("hybrid_input_parameters is None")
 
         electron_beam = S4ElectronBeam(
-            energy_in_GeV=hybrid_input_parameters.electron_energy_in_GeV,
-            energy_spread=hybrid_input_parameters.electron_energy_spread,
-            current=hybrid_input_parameters.ring_current,
-            moment_xx=hybrid_input_parameters.electron_beam_size_h**2,
-            moment_xxp=0.0,
-            moment_xpxp=hybrid_input_parameters.electron_beam_divergence_h**2,
-            moment_yy=hybrid_input_parameters.electron_beam_size_v**2,
-            moment_yyp=0.0,
-            moment_ypyp=hybrid_input_parameters.electron_beam_divergence_v**2
+            energy_in_GeV=hybrid_input_parameters.electron_beam._energy_in_GeV,
+            energy_spread=hybrid_input_parameters.electron_beam._energy_spread,
+            current=hybrid_input_parameters.electron_beam._current,
+            moment_xx=hybrid_input_parameters.electron_beam._moment_xx,
+            moment_yy=hybrid_input_parameters.electron_beam._moment_yy,
+            moment_xxp=hybrid_input_parameters.electron_beam._moment_xxp,
+            moment_yyp=hybrid_input_parameters.electron_beam._moment_yyp,
+            moment_xpxp=hybrid_input_parameters.electron_beam._moment_xpxp,
+            moment_ypyp=hybrid_input_parameters.electron_beam._moment_ypyp,
+            dispersion_x=hybrid_input_parameters.electron_beam._dispersion_x,
+            dispersion_y=hybrid_input_parameters.electron_beam._dispersion_y,
+            dispersionp_x=hybrid_input_parameters.electron_beam._dispersionp_x,
+            dispersionp_y=hybrid_input_parameters.electron_beam._dispersionp_y,
         )
+
         magnetic_structure = Undulator(
             K_vertical=hybrid_input_parameters.Kv,
             K_horizontal=hybrid_input_parameters.Kh,
@@ -116,9 +121,9 @@ class S4HybridUndulatorLightSource(S4LightSource, HybridUndulatorCalculator):
 
 
     def get_beam(self, **params) -> Tuple[S4Beam, HybridUndulatorOutputParameters]:
-        output_beam, output_parameters = self.run_hybrid_undulator_simulation(do_cumulated_calculations=params.get("do_cumulated_calculations", False))
+        output_beam = self.run_hybrid_undulator_simulation(do_cumulated_calculations=params.get("do_cumulated_calculations", False))
 
-        return output_beam, output_parameters
+        return output_beam
 
     def calculate_spectrum(self, **params):
         raise NotImplementedError("This calculation is not implemented for this source.")
@@ -141,9 +146,10 @@ class S4HybridUndulatorLightSource(S4LightSource, HybridUndulatorCalculator):
 
         input_parameters = self.get_input_parameters()
 
-        script += "\n\n\n# light source\nfrom shadow4_advanced.s4_hybrid_undulator_light_source import S4HybridUndulatorLightSource"
+        script += "\n\n\n# light source\nfrom shadow4_advanced.hybrid.s4_hybrid_undulator_light_source import S4HybridUndulatorLightSource"
         script += "\nfrom hybrid_methods.undulator.hybrid_undulator import HybridUndulatorInputParameters, HybridUndulatorOutputParameters"
         script += "\nhybrid_input_parameters = HybridUndulatorInputParameters("
+        script += f"\n    electron_beam                                               = electron_beam,"
         script += f"\n    number_of_rays                                              = {input_parameters.number_of_rays                                             },"
         script += f"\n    seed                                                        = {input_parameters.seed                                                       },"
         script += f"\n    use_harmonic                                                = {input_parameters.use_harmonic                                               },"
@@ -165,13 +171,6 @@ class S4HybridUndulatorLightSource(S4LightSource, HybridUndulatorCalculator):
         script += f"\n    horizontal_central_position                                 = {input_parameters.horizontal_central_position                                },"
         script += f"\n    vertical_central_position                                   = {input_parameters.vertical_central_position                                  },"
         script += f"\n    longitudinal_central_position                               = {input_parameters.longitudinal_central_position                              },"
-        script += f"\n    electron_energy_in_GeV                                      = {input_parameters.electron_energy_in_GeV                                     },"
-        script += f"\n    electron_energy_spread                                      = {input_parameters.electron_energy_spread                                     },"
-        script += f"\n    ring_current                                                = {input_parameters.ring_current                                               },"
-        script += f"\n    electron_beam_size_h                                        = {input_parameters.electron_beam_size_h                                       },"
-        script += f"\n    electron_beam_size_v                                        = {input_parameters.electron_beam_size_v                                       },"
-        script += f"\n    electron_beam_divergence_h                                  = {input_parameters.electron_beam_divergence_h                                 },"
-        script += f"\n    electron_beam_divergence_v                                  = {input_parameters.electron_beam_divergence_v                                 },"
         script += f"\n    type_of_initialization                                      = {input_parameters.type_of_initialization                                     },"
         script += f"\n    use_stokes                                                  = {input_parameters.use_stokes                                                 },"
         script += f"\n    auto_expand                                                 = {input_parameters.auto_expand                                                },"
