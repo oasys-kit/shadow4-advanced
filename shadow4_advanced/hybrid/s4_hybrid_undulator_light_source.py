@@ -50,12 +50,11 @@ import scipy.constants as codata
 
 EtoK = 2.0 * numpy.pi / (codata.h * codata.c / codata.e * 1e2)
 
-from syned.storage_ring.magnetic_structures.undulator import Undulator
-
-from shadow4.sources.s4_electron_beam import S4ElectronBeam
 from shadow4.sources.s4_light_source import S4LightSource
 from shadow4.beam.s4_beam import S4Beam
 from shadow4.sources.source_geometrical.source_geometrical import SourceGeometrical
+
+from syned.storage_ring.magnetic_structures.undulator import Undulator
 
 from hybrid_methods.undulator.hybrid_undulator import (
     HybridUndulatorCalculator, HybridUndulatorInputParameters,
@@ -71,10 +70,52 @@ from hybrid_methods.undulator.hybrid_undulator import (
     _is_canted_undulator as is_canted_undulator,
     _get_source_slit_data as get_source_slit_data,
     _set_which_waist as set_which_waist,
+    _K_from_magnetic_field as K_from_magnetic_field,
 )
 #
 ####################################################
 
+
+class S4HybridUndulator(Undulator):
+    def __init__(self,
+                 K_vertical = 0.0,
+                 K_horizontal = 0.0,
+                 period_length = 0.0,
+                 number_of_periods = 1.0):
+        Undulator.__init__(self, K_vertical, K_horizontal, period_length, number_of_periods)
+
+
+    def __script_dict(self):
+        return {
+            "K_vertical"                       : self.K_vertical(),
+            "K_horizontal"                     : self.K_horizontal(),
+            "period_length"                    : self.period_length(),
+            "number_of_periods"                : self.number_of_periods(),
+        }
+
+    def to_python_code(self):
+        """
+        Returns the python code for defining the wiggler magnetic structure.
+
+        Returns
+        -------
+        str
+            The python code.
+        """
+        script_template = """
+
+# magnetic structure
+from shadow4_advanced.hybrid.s4_hybrid_undulator_light_source import S4HybridUndulator
+magnetic_structure = S4HybridUndulator(
+    K_vertical        = {K_vertical}, # syned Undulator parameter
+    K_horizontal      = {K_horizontal}, # syned Undulator parameter
+    period_length     = {period_length}, # syned Undulator parameter
+    number_of_periods = {number_of_periods}, # syned Undulator parameter
+    )"""
+
+        script = script_template.format_map(self.__script_dict())
+
+        return script
 
 class S4HybridUndulatorLightSource(S4LightSource, HybridUndulatorCalculator):
     def __init__(self,
@@ -84,41 +125,16 @@ class S4HybridUndulatorLightSource(S4LightSource, HybridUndulatorCalculator):
 
         if hybrid_input_parameters is None: raise ValueError("hybrid_input_parameters is None")
 
-        electron_beam = S4ElectronBeam(
-            energy_in_GeV=hybrid_input_parameters.electron_beam._energy_in_GeV,
-            energy_spread=hybrid_input_parameters.electron_beam._energy_spread,
-            current=hybrid_input_parameters.electron_beam._current,
-            moment_xx=hybrid_input_parameters.electron_beam._moment_xx,
-            moment_yy=hybrid_input_parameters.electron_beam._moment_yy,
-            moment_xxp=hybrid_input_parameters.electron_beam._moment_xxp,
-            moment_yyp=hybrid_input_parameters.electron_beam._moment_yyp,
-            moment_xpxp=hybrid_input_parameters.electron_beam._moment_xpxp,
-            moment_ypyp=hybrid_input_parameters.electron_beam._moment_ypyp,
-            dispersion_x=hybrid_input_parameters.electron_beam._dispersion_x,
-            dispersion_y=hybrid_input_parameters.electron_beam._dispersion_y,
-            dispersionp_x=hybrid_input_parameters.electron_beam._dispersionp_x,
-            dispersionp_y=hybrid_input_parameters.electron_beam._dispersionp_y,
-        )
-
-        magnetic_structure = Undulator(
-            K_vertical=hybrid_input_parameters.Kv,
-            K_horizontal=hybrid_input_parameters.Kh,
-            period_length=hybrid_input_parameters.undulator_period,
-            number_of_periods=hybrid_input_parameters.number_of_periods
-        )
-
         S4LightSource.__init__(self,
                                name=name,
-                               electron_beam=electron_beam,
-                               magnetic_structure=magnetic_structure,
+                               electron_beam=hybrid_input_parameters.electron_beam,
+                               magnetic_structure=hybrid_input_parameters.magnetic_structure,
                                nrays=hybrid_input_parameters.number_of_rays,
                                seed=hybrid_input_parameters.seed,
                                )
         HybridUndulatorCalculator.__init__(self,
                                            input_parameters=hybrid_input_parameters,
                                            listener=calculation_listener)
-
-
 
     def get_beam(self, **params) -> Tuple[S4Beam, HybridUndulatorOutputParameters]:
         output_beam = self.run_hybrid_undulator_simulation(do_cumulated_calculations=params.get("do_cumulated_calculations", False))
@@ -150,6 +166,7 @@ class S4HybridUndulatorLightSource(S4LightSource, HybridUndulatorCalculator):
         script += "\nfrom hybrid_methods.undulator.hybrid_undulator import HybridUndulatorInputParameters, HybridUndulatorOutputParameters"
         script += "\nhybrid_input_parameters = HybridUndulatorInputParameters("
         script += f"\n    electron_beam                                               = electron_beam,"
+        script += f"\n    magnetic_structure                                          = magnetic_structure,"
         script += f"\n    number_of_rays                                              = {input_parameters.number_of_rays                                             },"
         script += f"\n    seed                                                        = {input_parameters.seed                                                       },"
         script += f"\n    use_harmonic                                                = {input_parameters.use_harmonic                                               },"
@@ -157,13 +174,6 @@ class S4HybridUndulatorLightSource(S4LightSource, HybridUndulatorCalculator):
         script += f"\n    energy                                                      = {input_parameters.energy                                                     },"
         script += f"\n    energy_to                                                   = {input_parameters.energy_to                                                  },"
         script += f"\n    energy_points                                               = {input_parameters.energy_points                                              },"
-        script += f"\n    number_of_periods                                           = {input_parameters.number_of_periods                                          },"
-        script += f"\n    undulator_period                                            = {input_parameters.undulator_period                                           },"
-        script += f"\n    Kv                                                          = {input_parameters.Kv                                                         },"
-        script += f"\n    Kh                                                          = {input_parameters.Kh                                                         },"
-        script += f"\n    Bh                                                          = {input_parameters.Bh                                                         },"
-        script += f"\n    Bv                                                          = {input_parameters.Bv                                                         },"
-        script += f"\n    magnetic_field_from                                         = {input_parameters.magnetic_field_from                                        },"
         script += f"\n    initial_phase_vertical                                      = {input_parameters.initial_phase_vertical                                     },"
         script += f"\n    initial_phase_horizontal                                    = {input_parameters.initial_phase_horizontal                                   },"
         script += f"\n    symmetry_vs_longitudinal_position_vertical                  = {input_parameters.symmetry_vs_longitudinal_position_vertical                 },"
@@ -203,14 +213,14 @@ class S4HybridUndulatorLightSource(S4LightSource, HybridUndulatorCalculator):
         script += f"\n    waist_position_user_defined                                 = {input_parameters.waist_position_user_defined                                },"
         script += f"\n    kind_of_sampler                                             = {input_parameters.kind_of_sampler                                            },"
         script += f"\n    save_srw_result                                             = {input_parameters.save_srw_result                                            },"
-        script += f"\n    source_dimension_srw_file                                   = {input_parameters.source_dimension_srw_file                                  },"
-        script += f"\n    angular_distribution_srw_file                               = {input_parameters.angular_distribution_srw_file                              },"
-        script += f"\n    x_positions_file                                            = {input_parameters.x_positions_file                                           },"
-        script += f"\n    z_positions_file                                            = {input_parameters.z_positions_file                                           },"
+        script += f"\n    source_dimension_srw_file                                   = '{input_parameters.source_dimension_srw_file                                  }',"
+        script += f"\n    angular_distribution_srw_file                               = '{input_parameters.angular_distribution_srw_file                              }',"
+        script += f"\n    x_positions_file                                            = '{input_parameters.x_positions_file                                           }',"
+        script += f"\n    z_positions_file                                            = '{input_parameters.z_positions_file                                           }',"
         script += f"\n    x_positions_factor                                          = {input_parameters.x_positions_factor                                         },"
         script += f"\n    z_positions_factor                                          = {input_parameters.z_positions_factor                                         },"
-        script += f"\n    x_divergences_file                                          = {input_parameters.x_divergences_file                                         },"
-        script += f"\n    z_divergences_file                                          = {input_parameters.z_divergences_file                                         },"
+        script += f"\n    x_divergences_file                                          = '{input_parameters.x_divergences_file                                         }',"
+        script += f"\n    z_divergences_file                                          = '{input_parameters.z_divergences_file                                         }',"
         script += f"\n    x_divergences_factor                                        = {input_parameters.x_divergences_factor                                       },"
         script += f"\n    z_divergences_factor                                        = {input_parameters.z_divergences_factor                                       },"
         script += f"\n    combine_strategy                                            = {input_parameters.combine_strategy                                           },"
@@ -232,7 +242,9 @@ class S4HybridUndulatorLightSource(S4LightSource, HybridUndulatorCalculator):
     def _generate_initial_beam(self):
         input_parameters = self.get_input_parameters()
 
-        energy = input_parameters.energy if input_parameters.use_harmonic != 0 else resonance_energy(input_parameters, harmonic=input_parameters.harmonic_number)
+        energy = input_parameters.energy if input_parameters.use_harmonic != 0 else resonance_energy(electron_beam=input_parameters.electron_beam,
+                                                                                                     magnetic_structure=input_parameters.magnetic_structure,
+                                                                                                     harmonic=input_parameters.harmonic_number)
 
         source = SourceGeometrical(
             name="Hybrid Undulator Initial Source",
