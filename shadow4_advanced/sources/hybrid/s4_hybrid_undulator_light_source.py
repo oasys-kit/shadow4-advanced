@@ -48,7 +48,7 @@ from typing import Tuple
 import numpy
 import scipy.constants as codata
 
-EtoK = 2.0 * numpy.pi / (codata.h * codata.c / codata.e * 1e2)
+E2K = 2.0 * numpy.pi / (codata.h * codata.c / codata.e * 1e2)
 
 from shadow4.sources.s4_light_source import S4LightSource
 from shadow4.beam.s4_beam import S4Beam
@@ -261,7 +261,7 @@ class S4HybridUndulatorLightSource(S4LightSource, HybridUndulatorCalculator):
         return source.get_beam()
 
     def _get_rays_from_beam(self, output_beam: S4Beam):                   return output_beam.rays
-    def _get_k_from_energy(self, energies: numpy.ndarray):                return energies * EtoK
+    def _get_k_from_energy(self, energies: numpy.ndarray):                return energies * E2K
     def _retrace_output_beam(self, output_beam: S4Beam, distance: float): output_beam.retrace(distance)
     #
     # ###############################################################

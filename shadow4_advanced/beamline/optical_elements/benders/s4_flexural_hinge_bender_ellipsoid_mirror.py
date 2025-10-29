@@ -195,7 +195,7 @@ class S4FlexuralHingeBenderEllipsoidMirror(S4AdditionalNumericalMeshMirror):
     def to_python_code(self, **kwargs):
         txt = self.ideal_mirror().to_python_code()
 
-        txt += "\n\nfrom shadow4_advanced.benders.s4_flexural_hinge_bender_ellipsoid_mirror import S4FlexuralHingeBenderEllipsoidMirror"
+        txt += "\n\nfrom shadow4_advanced.beamline.optical_elements.benders.s4_flexural_hinge_bender_ellipsoid_mirror import S4FlexuralHingeBenderEllipsoidMirror"
         txt += "\n\nellipsoid_mirror = optical_element"
 
         if not self._fit_to_focus_parameters is None:
@@ -275,7 +275,7 @@ class S4FlexuralHingeBenderEllipsoidMirrorElement(S4AdditionalNumericalMeshMirro
 
         txt += self.to_python_code_movements()
 
-        txt += "\nfrom shadow4_advanced.benders.s4_flexural_hinge_bender_ellipsoid_mirror import S4FlexuralHingeBenderEllipsoidMirrorElement"
+        txt += "\nfrom shadow4_advanced.beamline.optical_elements.benders.s4_flexural_hinge_bender_ellipsoid_mirror import S4FlexuralHingeBenderEllipsoidMirrorElement"
         txt += "\nbeamline_element = S4FlexuralHingeBenderEllipsoidMirrorElement(optical_element=optical_element, coordinates=coordinates, movements=movements, input_beam=beam)"
         txt += "\n\nbeam, mirr = beamline_element.trace_beam()"
 

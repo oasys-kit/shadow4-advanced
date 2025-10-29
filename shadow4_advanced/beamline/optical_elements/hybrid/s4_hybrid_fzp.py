@@ -64,7 +64,7 @@ from shadow4.beamline.optical_elements.ideal_elements.s4_ideal_lens import S4Ide
 
 GOOD = 1
 
-class S4FresnelZonePlate(HybridFresnelZonePlate, OpticalElement, S4OpticalElementDecorator):
+class S4HybridFZP(HybridFresnelZonePlate, OpticalElement, S4OpticalElementDecorator):
     def __init__(self,
                  name="Undefined",
                  input_parameters: FZPCalculationInputParameters = FZPCalculationInputParameters(),
@@ -110,7 +110,7 @@ class S4FresnelZonePlate(HybridFresnelZonePlate, OpticalElement, S4OpticalElemen
 
         txt = f"""
 
-from shadow4_advanced.fresnel_zone_plate.s4_fresnel_zone_plate import S4FresnelZonePlate
+from shadow4_advanced.beamline.optical_elements.hybrid.s4_hybrid_fzp import S4HybridFZP
 from hybrid_methods.fresnel_zone_plate.hybrid_fresnel_zone_plate import FZPAttributes, FZPSimulatorOptions, FZPCalculationInputParameters
 
 input_parameters = FZPCalculationInputParameters(source_distance={self.calculation_input_parameters.source_distance},
@@ -211,25 +211,30 @@ optical_element=S4FresnelZonePlate(name='{self.get_name()}',
         output_beam.rays[go, 17] *= efficiency_factor
 
 
-class S4FresnelZonePlateElement(S4BeamlineElement):
+class S4HybridFZPElement(S4BeamlineElement):
     def __init__(self,
-                 optical_element: S4FresnelZonePlate = None,
+                 optical_element: S4HybridFZP = None,
                  coordinates: ElementCoordinates = None,
                  input_beam: S4Beam = None):
-        super().__init__(optical_element=optical_element if optical_element is not None else S4FresnelZonePlateElement(),
+        super().__init__(optical_element=optical_element if optical_element is not None else S4HybridFZPElement(),
                          coordinates=coordinates if coordinates is not None else ElementCoordinates(),
                          input_beam=input_beam)
 
     def trace_beam(self, **params):
         input_beam = self.get_input_beam().duplicate()
-        zone_plate: S4FresnelZonePlate = self.get_optical_element()
+        zone_plate: S4HybridFZP = self.get_optical_element()
 
         p, q = self.get_coordinates().get_p_and_q()
 
         zone_plate.source_distance = p
         zone_plate.input_beam      = input_beam
 
-        return zone_plate.run_fzp_hybrid_method(zone_plate.calculation_input_parameters)
+        output_beam, calculation_results = zone_plate.run_fzp_hybrid_method(zone_plate.calculation_input_parameters)
+
+        footprint = output_beam.duplicate()
+        footprint.rotate(numpy.pi / 2, axis=1)
+
+        return output_beam, footprint, calculation_results
 
     def to_python_code(self, **kwargs):
         txt = "\n\n# optical element number XX"
@@ -241,13 +246,13 @@ class S4FresnelZonePlateElement(S4BeamlineElement):
         txt += "\n\ncoordinates = ElementCoordinates(p=%g, q=%g, angle_radial=%g, angle_azimuthal=%g, angle_radial_out=%g)" % \
                (coordinates.p(), coordinates.q(), coordinates.angle_radial(), coordinates.angle_azimuthal(), coordinates.angle_radial_out())
 
-        txt += "\n\nfrom shadow4_advanced.fresnel_zone_plate.s4_fresnel_zone_plate import S4FresnelZonePlateElement"
-        txt += "\n\nbeamline_element = S4FresnelZonePlateElement(optical_element=optical_element, coordinates=coordinates, input_beam=beam)"
-        txt += "\n\nbeam, calculation_result = beamline_element.trace_beam()"
+        txt += "\n\nfrom shadow4_advanced.beamline.optical_elements.hybrid.s4_hybrid_fzp import S4HybridFZPElement"
+        txt += "\n\nbeamline_element = S4HybridFZPElement(optical_element=optical_element, coordinates=coordinates, input_beam=beam)"
+        txt += "\n\nbeam, mirr, calculation_result = beamline_element.trace_beam()"
 
-        txt += "\nzone_plate_out           = beamline_element.get_optical_element()"
+        txt += "\nzone_plate_out = beamline_element.get_optical_element()"
 
-        txt += "\n\navg_energy      = 1e3 * zone_plate_out.get_energy_in_KeV()"
+        txt += "\n\navg_energy    = 1e3 * zone_plate_out.get_energy_in_KeV()"
         txt += "\nimage_distance  = round(zone_plate_out.zp_image_distance, 6)"
         txt += "\nnumber_of_zones = zone_plate_out.get_n_zones()"
         txt += "\nfocal_distance  = round(zone_plate_out.zp_focal_distance, 6)"

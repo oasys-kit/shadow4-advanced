@@ -51,9 +51,13 @@ from setuptools import setup
 
 PACKAGES = [
     "shadow4_advanced",
-    "shadow4_advanced.hybrid",
-    "shadow4_advanced.fresnel_zone_plate",
-    "shadow4_advanced.benders"
+    "shadow4_advanced.beamline",
+    "shadow4_advanced.beamline.optical_elements",
+    "shadow4_advanced.beamline.optical_elements.benders",
+    "shadow4_advanced.beamline.optical_elements.gratings",
+    "shadow4_advanced.beamline.optical_elements.hybrid",
+    "shadow4_advanced.sources",
+    "shadow4_advanced.sources.hybrid",
 ]
 
 INSTALL_REQUIRES = (
@@ -68,7 +72,7 @@ INSTALL_REQUIRES = (
 )
 
 setup(name='shadow4-advanced',
-      version='0.0.18',
+      version='0.0.19',
       description='advanced tools for shadow4 in python',
       author='Luca Rebuffi, Xianbo Shi, Manuel Sanchez del Rio',
       author_email='lrebuffi@anl.gov',
