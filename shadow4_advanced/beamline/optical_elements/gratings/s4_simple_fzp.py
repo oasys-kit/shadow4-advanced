@@ -190,28 +190,19 @@ class S4SimpleFZP(OpticalElement, S4OpticalElementDecorator):
         str
             Python code.
         """
-        txt_pre = """
+        txt = f"""
 
 from shadow4_advanced.beamline.optical_elements.gratings.s4_simple_fzp import S4SimpleFZP
-optical_element = S4SimpleFZP(name                 = '{name:s}',
-                              diameter             = {diameter:d},
-                              delta_rn             = {delta_rn:d},
-                              source_distance      = {source_distance:d},
-                              type_of_zp           = {type_of_zp:d},
-                              zone_plate_material  = '{zone_plate_material:s}',
-                              zone_plate_thickness = {zone_plate_thickness:d},
-                              substrate_material   = '{substrate_material:s}',
-                              substrate_thickness  = {substrate_thickness:d})
+optical_element = S4SimpleFZP(name                 = '{self.get_name()}',
+                              diameter             = {self.diameter()},
+                              delta_rn             = {self.delta_rn()},
+                              source_distance      = {self.source_distance()},
+                              type_of_zp           = {self.type_of_zp()},
+                              zone_plate_material  = '{self.zone_plate_material()}',
+                              zone_plate_thickness = {self.zone_plate_thickness()},
+                              substrate_material   = '{self.substrate_material()}',
+                              substrate_thickness  = {self.substrate_thickness()})
 """
-        txt = txt_pre.format(**{ 'name': self.get_name(),
-                                 'diameter': self.diameter(),
-                                 'delta_rn': self.delta_rn(),
-                                 'source_distance': self.source_distance(),
-                                 'type_of_zp': self.type_of_zp(),
-                                 'zone_plate_material' : self.zone_plate_material(),
-                                 'zone_plate_thickness' :  self.zone_plate_thickness(),
-                                 'substrate_material' : self.substrate_material(),
-                                 'substrate_thickness' : self.substrate_thickness()})
         return txt
 
 class S4SimpleFZPElement(S4BeamlineElement):
@@ -291,16 +282,16 @@ class S4SimpleFZPElement(S4BeamlineElement):
         txt = "\n\n# optical element number XX"
         txt += self.get_optical_element().to_python_code()
         txt += self.to_python_code_coordinates()
-        txt += "\nfrom shadow4_advanced.beamline.optical_elements.gratings.s4_simple_fzp import S4SimpleFZPElement"
+        txt += "\nfrom shadow4_advanced.beamline.optical_elements.gratings.s4_simple_fzp import S4SimpleFZPElement\nimport numpy"
         txt += "\nbeamline_element = S4SimpleFZPElement(optical_element=optical_element, coordinates=coordinates, input_beam=beam)"
         txt += "\n\nbeam, mirr, calculation_result = beamline_element.trace_beam()"
 
         txt += "\nzone_plate_out = beamline_element.get_optical_element()"
 
-        txt += "\n\navg_wavelength = output_beam.get_photon_wavelength(nolost=1)*1e9"
+        txt += "\n\navg_wavelength = numpy.average(beam.get_photon_wavelength(nolost=1))*1e9"
         txt += "\nfocal_distance   = round(zone_plate_out.focal_distance(avg_wavelength), 6)"
         txt += "\nimage_position   = round(zone_plate_out.image_position(focal_distance), 6)"
-        txt += "\nmagnification    = round(zone_plate_out.magnification(image_positiomn), 6)"
+        txt += "\nmagnification    = round(zone_plate_out.magnification(image_position), 6)"
         txt += "\nnumber_of_zones  = calculation_result.get('number_of_zones', -1)"
 
         txt += "\nprint(\"Average Wavelength [nm]:\", avg_wavelength)"
@@ -315,9 +306,9 @@ class S4SimpleFZPElement(S4BeamlineElement):
         screen_element = S4ScreenElement(optical_element=S4Screen(boundary_shape=self.get_optical_element().get_boundary_shape()),
                                          coordinates=ElementCoordinates(p=self.get_coordinates().p(), q=0.0),
                                          input_beam=self.get_input_beam().duplicate())
-        output_beam, _ = screen_element.trace_beam()
+        initial_beam, _ = screen_element.trace_beam()
         
-        return output_beam
+        return initial_beam
 
 # ------------------------------------------------------
 # FROM SHADOWOUI
@@ -337,26 +328,18 @@ def _get_material_density(material: str):
     return rho
 
 def _get_material_weight_factor(rays, material, thickness):
-    mu = numpy.zeros(len(rays))
-
-    for i in range(0, len(mu)):
-        energy_in_KeV = (E2K / rays[i, 10]) * 1e-3
-        mu[i]         = materials_library.CS_Total_CP(material, energy_in_KeV)
-
+    mu  = materials_library.CS_Total_CP(material, (E2K / rays[:, 10]) * 1e-3)
     rho = _get_material_density(material)
 
     return numpy.sqrt(numpy.exp(-mu * rho * thickness * 1e-7))  # thickness in CM
 
 def _get_delta_beta(rays, material):
-    beta  = numpy.zeros(len(rays))
-    delta = numpy.zeros(len(rays))
     density = materials_library.ElementDensity(materials_library.SymbolToAtomicNumber(material))
 
-    for i in range(0, len(rays)):
-        energy_in_KeV = (E2K / rays[i, 10]) * 1e-3
+    energy_in_KeV = (E2K / rays[:, 10]) * 1e-3
 
-        delta[i] = (1 - materials_library.Refractive_Index_Re(material, energy_in_KeV, density))
-        beta[i]  = materials_library.Refractive_Index_Im(material, energy_in_KeV, density)
+    delta = (1 - materials_library.Refractive_Index_Re(material, energy_in_KeV, density))
+    beta  = materials_library.Refractive_Index_Im(material, energy_in_KeV, density)
 
     return delta, beta
 

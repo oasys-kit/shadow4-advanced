@@ -140,10 +140,10 @@ attributes = FZPAttributes(height={attributes.height},
                            zone_plate_material='{attributes.zone_plate_material}',
                            template_material='{attributes.template_material}')
 
-optical_element=S4FresnelZonePlate(name='{self.get_name()}',
-                                   input_parameters=input_parameters,
-                                   options=options,
-                                   attributes=attributes)
+optical_element=S4HybridFZP(name='{self.get_name()}',
+                            input_parameters=input_parameters,
+                            options=options,
+                            attributes=attributes)
 
         """
 

@@ -105,7 +105,7 @@ class S4HybridUndulator(Undulator):
         script_template = """
 
 # magnetic structure
-from shadow4_advanced.hybrid.s4_hybrid_undulator_light_source import S4HybridUndulator
+from shadow4_advanced.sources.hybrid.s4_hybrid_undulator_light_source import S4HybridUndulator
 magnetic_structure = S4HybridUndulator(
     K_vertical        = {K_vertical}, # syned Undulator parameter
     K_horizontal      = {K_horizontal}, # syned Undulator parameter
@@ -162,7 +162,7 @@ class S4HybridUndulatorLightSource(S4LightSource, HybridUndulatorCalculator):
 
         input_parameters = self.get_input_parameters()
 
-        script += "\n\n\n# light source\nfrom shadow4_advanced.hybrid.s4_hybrid_undulator_light_source import S4HybridUndulatorLightSource"
+        script += "\n\n\n# light source\nfrom shadow4_advanced.sources.hybrid.s4_hybrid_undulator_light_source import S4HybridUndulatorLightSource"
         script += "\nfrom hybrid_methods.undulator.hybrid_undulator import HybridUndulatorInputParameters, HybridUndulatorOutputParameters"
         script += "\nhybrid_input_parameters = HybridUndulatorInputParameters("
         script += f"\n    electron_beam                                               = electron_beam,"

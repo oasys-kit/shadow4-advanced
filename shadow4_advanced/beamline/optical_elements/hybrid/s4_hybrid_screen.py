@@ -746,7 +746,7 @@ class S4HybridScreen(OpticalElement):
     def _get_calculation_type(self) -> HybridCalculationType: return self.__calculation_type
 
     def to_python_code(self, **kwargs):
-        txt = "\nfrom shadow4_advanced.hybrid.s4_hybrid_screen import S4HybridScreen"
+        txt = "\nfrom shadow4_advanced.beamline.optical_elements.hybrid.s4_hybrid_screen import S4HybridScreen"
         txt += "\n\ncalculation_type=%i" % self.__calculation_type
         txt += "\nhybrid_screen = S4HybridScreen(calculation_type)\n"
 
@@ -779,7 +779,7 @@ class S4HybridScreenElement(S4BeamlineElement):
 
         txt = "\n\n# optical element number XX"
         txt += "\nfrom hybrid_methods.coherence.hybrid_screen import StdIOHybridListener"
-        txt += "\nfrom shadow4_advanced.hybrid.s4_hybrid_screen import S4HybridBeam, S4HybridOE, HybridInputParameters, S4HybridScreenElement"
+        txt += "\nfrom shadow4_advanced.beamline.optical_elements.hybrid.s4_hybrid_screen import S4HybridBeam, S4HybridOE, HybridInputParameters, S4HybridScreenElement"
         txt += self.get_optical_element().to_python_code()
 
         txt += "\n\nadditional_parameters = {}"
