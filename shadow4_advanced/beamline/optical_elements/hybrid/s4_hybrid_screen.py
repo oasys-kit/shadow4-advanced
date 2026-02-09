@@ -408,13 +408,13 @@ class _S4OEWithSurfaceHybridScreen(_ShadowOEHybridScreen):
         movements         = beamline_element.get_movements()
         diffraction_plane = input_parameters.diffraction_plane
 
-        if not movements is None:
+        if not movements is None and input_parameters.analyze_displacements:
             if diffraction_plane == HybridDiffractionPlane.SAGITTAL:  # X
                 if movements.rotation_x != 0.0 or movements.rotation_z != 0.0: raise Exception("Only rotations around the Y axis are supported for sagittal diffraction plane")
             elif (diffraction_plane == HybridDiffractionPlane.TANGENTIAL or diffraction_plane == HybridDiffractionPlane.BOTH_2D):  # Z
                 if movements.rotation_y != 0.0 or movements.rotation_z != 0.0: raise Exception("Only rotations around the X axis are supported for tangential or Both (2D) diffraction planes")
             elif diffraction_plane == HybridDiffractionPlane.BOTH_2X1D:  # Z
-                if movements.rotation_z != 0.0:                               raise Exception("Only rotations around the X and Y axis are supported for Both (1D+1D) diffraction planes")
+                if movements.rotation_z != 0.0:                                raise Exception("Only rotations around the X and Y axis are supported for Both (1D+1D) diffraction planes")
 
     def _calculate_geometrical_parameters(self, input_parameters: HybridInputParameters):
         geometrical_parameters = AbstractHybridScreen.GeometricalParameters()
