@@ -689,12 +689,25 @@ class _S4OEKBMirrorHybridScreen():
         kb_mirror_1.get_coordinates().set_p_and_q(p=kb_mirror_1.get_coordinates().p(), q=total_image_distance)
 
     def _get_kb_mirror_2_beam(self, kb_mirror_2: BeamlineElement, beam_1: HybridBeamWrapper):
-        kb_mirror_2 : S4BeamlineElement = kb_mirror_2
         kb_mirror_2.set_input_beam(beam_1.wrapped_beam)
         shadow_beam, _ = kb_mirror_2.trace_beam()
 
         return shadow_beam
 
+    @staticmethod
+    def _flip_vertical_direction(input_parameters:HybridInputParameters, kb_mirror_result: HybridCalculationResult):
+        if input_parameters.treat_displacement_as_phase_shift:
+            sign    = 1 if (input_parameters.optical_element.wrapped_optical_element[1].get_coordinates().angle_azimuthal() - 0.5*np.pi) < 1e-6 else -1
+            ff_beam = kb_mirror_result.far_field_beam
+            nf_beam = kb_mirror_result.near_field_beam
+
+            if not ff_beam is None:
+                ff_beam.wrapped_beam.rays[:, 0] *= sign
+                ff_beam.wrapped_beam.rays[:, 3] *= sign
+
+            if not nf_beam is None:
+                nf_beam.wrapped_beam.rays[:, 0] *= sign
+                nf_beam.wrapped_beam.rays[:, 3] *= sign
 
     def _merge_beams(self, beam_1: S4HybridBeam, beam_2: S4HybridBeam):
         if beam_1 is None or beam_2 is None: return None
@@ -743,20 +756,8 @@ class S4KBMirrorSizeHybridScreen(_S4OEKBMirrorHybridScreen, AbstractKBMirrorSize
         AbstractKBMirrorSizeHybridScreen.__init__(self, wave_optics_provider, implementation, **kwargs)
 
     def run_hybrid_method(self, input_parameters : HybridInputParameters):
-        kb_mirror_result: HybridCalculationResult = super(S4KBMirrorSizeHybridScreen, self).run_hybrid_method(input_parameters)
-
-        if input_parameters.treat_displacement_as_phase_shift:
-            sign    = 1 if input_parameters.optical_element.wrapped_optical_element[1].get_coordinates().angle_azimuthal() == 0.5*np.pi else -1
-            ff_beam = kb_mirror_result.far_field_beam
-            nf_beam = kb_mirror_result.near_field_beam
-
-            if not ff_beam is None:
-                ff_beam.wrapped_beam.rays[:, 0] *= sign
-                ff_beam.wrapped_beam.rays[:, 3] *= sign
-
-            if not nf_beam is None:
-                nf_beam.wrapped_beam.rays[:, 0] *= sign
-                nf_beam.wrapped_beam.rays[:, 3] *= sign
+        kb_mirror_result = super(S4KBMirrorSizeHybridScreen, self).run_hybrid_method(input_parameters)
+        self._flip_vertical_direction(input_parameters, kb_mirror_result)
 
         return kb_mirror_result
 
@@ -765,20 +766,8 @@ class S4KBMirrorSizeAndErrorHybridScreen(_S4OEKBMirrorHybridScreen, AbstractKBMi
         AbstractKBMirrorSizeAndErrorHybridScreen.__init__(self, wave_optics_provider, implementation, **kwargs)
 
     def run_hybrid_method(self, input_parameters : HybridInputParameters):
-        kb_mirror_result: HybridCalculationResult = super(S4KBMirrorSizeAndErrorHybridScreen, self).run_hybrid_method(input_parameters)
-
-        if input_parameters.treat_displacement_as_phase_shift:
-            sign    = 1 if (input_parameters.optical_element.wrapped_optical_element[1].get_coordinates().angle_azimuthal() - 0.5*np.pi < 1e-3) else -1
-            ff_beam = kb_mirror_result.far_field_beam
-            nf_beam = kb_mirror_result.near_field_beam
-
-            if not ff_beam is None:
-                ff_beam.wrapped_beam.rays[:, 0] *= sign
-                ff_beam.wrapped_beam.rays[:, 3] *= sign
-
-            if not nf_beam is None:
-                nf_beam.wrapped_beam.rays[:, 0] *= sign
-                nf_beam.wrapped_beam.rays[:, 3] *= sign
+        kb_mirror_result = super(S4KBMirrorSizeAndErrorHybridScreen, self).run_hybrid_method(input_parameters)
+        self._flip_vertical_direction(input_parameters, kb_mirror_result)
 
         return kb_mirror_result
 
