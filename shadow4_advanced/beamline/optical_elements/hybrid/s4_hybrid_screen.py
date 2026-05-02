@@ -49,6 +49,8 @@ import copy
 from typing import Tuple, Union
 
 import numpy as np
+
+from shadow4.beam import s4_beam
 from srxraylib.util.data_structures import ScaledMatrix
 
 from syned.beamline.shape import Ellipsoid, EllipticalCylinder, Hyperboloid, HyperbolicCylinder, Circle
@@ -308,7 +310,6 @@ class _ShadowOEHybridScreen():
             ff_beam = image_plane_beam_good.duplicate()
 
             angle_num = numpy.sqrt(1 + (numpy.tan(calculation_parameters.dz_convolution)) ** 2 + (numpy.tan(calculation_parameters.dx_convolution)) ** 2)
-            if not input_parameters.treat_displacement_as_phase_shift: angle_num *= 2
 
             ff_beam.rays[:, 0] = copy.deepcopy(calculation_parameters.xx_image_ff)
             ff_beam.rays[:, 2] = copy.deepcopy(calculation_parameters.zz_image_ff)
@@ -322,7 +323,6 @@ class _ShadowOEHybridScreen():
 
                     angle_perpen = numpy.arctan(calculation_parameters.zp_screen / calculation_parameters.yp_screen)
                     angle_num    = numpy.sqrt(1 + (numpy.tan(angle_perpen)) ** 2 + (numpy.tan(calculation_parameters.dx_convolution)) ** 2)
-                    if not input_parameters.treat_displacement_as_phase_shift: angle_num *= 2
 
                     ff_beam.rays[:, 0] = copy.deepcopy(calculation_parameters.xx_image_ff)
                     ff_beam.rays[:, 3] = numpy.tan(calculation_parameters.dx_convolution) / angle_num
@@ -341,7 +341,6 @@ class _ShadowOEHybridScreen():
 
                     angle_perpen = numpy.arctan(calculation_parameters.xp_screen / calculation_parameters.yp_screen)
                     angle_num    = numpy.sqrt(1 + (numpy.tan(angle_perpen)) ** 2 + (numpy.tan(calculation_parameters.dz_convolution)) ** 2)
-                    if not input_parameters.treat_displacement_as_phase_shift: angle_num *= 2
 
                     ff_beam.rays[:, 2] = copy.deepcopy(calculation_parameters.zz_image_ff)
                     ff_beam.rays[:, 3] = numpy.tan(angle_perpen) / angle_num
@@ -361,7 +360,6 @@ class _ShadowOEHybridScreen():
                     if ff_beam is None: ff_beam = image_plane_beam_good.duplicate()
 
                     angle_num = numpy.sqrt(1 + (numpy.tan(calculation_parameters.dx_convolution)) ** 2 + (numpy.tan(calculation_parameters.dz_convolution)) ** 2)
-                    if not input_parameters.treat_displacement_as_phase_shift: angle_num *= 2
 
                     ff_beam.rays[:, 0] = copy.deepcopy(calculation_parameters.xx_image_ff)
                     ff_beam.rays[:, 2] = copy.deepcopy(calculation_parameters.zz_image_ff)
@@ -690,10 +688,9 @@ class _S4OEKBMirrorHybridScreen():
 
         kb_mirror_1.get_coordinates().set_p_and_q(p=kb_mirror_1.get_coordinates().p(), q=total_image_distance)
 
-    def _get_kb_mirror_2_input_beam(self, kb_mirror_2: BeamlineElement, beam_1: HybridBeamWrapper):
-        kb_mirror_2 : S4BeamlineElement = kb_mirror_2.duplicate()
+    def _get_kb_mirror_2_beam(self, kb_mirror_2: BeamlineElement, beam_1: HybridBeamWrapper):
+        kb_mirror_2 : S4BeamlineElement = kb_mirror_2
         kb_mirror_2.set_input_beam(beam_1.wrapped_beam)
-
         shadow_beam, _ = kb_mirror_2.trace_beam()
 
         return shadow_beam
@@ -746,7 +743,7 @@ class S4KBMirrorSizeHybridScreen(_S4OEKBMirrorHybridScreen, AbstractKBMirrorSize
         AbstractKBMirrorSizeHybridScreen.__init__(self, wave_optics_provider, implementation, **kwargs)
 
     def run_hybrid_method(self, input_parameters : HybridInputParameters):
-        kb_mirror_result: HybridCalculationResult = super(S4KBMirrorSizeAndErrorHybridScreen, self).run_hybrid_method(input_parameters)
+        kb_mirror_result: HybridCalculationResult = super(S4KBMirrorSizeHybridScreen, self).run_hybrid_method(input_parameters)
 
         if input_parameters.treat_displacement_as_phase_shift:
             sign    = 1 if input_parameters.optical_element.wrapped_optical_element[1].get_coordinates().angle_azimuthal() == 0.5*np.pi else -1
