@@ -148,7 +148,7 @@ class _ShadowOEHybridScreen():
         coordinates = shadow_element.get_coordinates()
         movements   = shadow_element.get_movements()
 
-        if not movements is None:
+        if not movements is None and input_parameters.treat_displacement_as_phase_shift:
             # tracing must be done without o.e. movements: hybrid is going to take care of that
             x_rot = movements.rotation_x
             y_rot = movements.rotation_y
@@ -160,7 +160,7 @@ class _ShadowOEHybridScreen():
 
         beam_at_image_plane, footprint_beam = shadow_element.trace_beam()
 
-        if not movements is None:
+        if not movements is None and input_parameters.treat_displacement_as_phase_shift:
             # restore o.e. setting for further calculations
             movements.rotation_x = x_rot
             movements.rotation_y = y_rot
@@ -308,20 +308,21 @@ class _ShadowOEHybridScreen():
             ff_beam = image_plane_beam_good.duplicate()
 
             angle_num = numpy.sqrt(1 + (numpy.tan(calculation_parameters.dz_convolution)) ** 2 + (numpy.tan(calculation_parameters.dx_convolution)) ** 2)
+            if not input_parameters.treat_displacement_as_phase_shift: angle_num *= 2
 
             ff_beam.rays[:, 0] = copy.deepcopy(calculation_parameters.xx_image_ff)
             ff_beam.rays[:, 2] = copy.deepcopy(calculation_parameters.zz_image_ff)
             ff_beam.rays[:, 3] = numpy.tan(calculation_parameters.dx_convolution) / angle_num
             ff_beam.rays[:, 4] = 1 / angle_num
             ff_beam.rays[:, 5] = numpy.tan(calculation_parameters.dz_convolution) / angle_num
-        else:
-            if input_parameters.diffraction_plane in [HybridDiffractionPlane.SAGITTAL]:
+        elif input_parameters.diffraction_plane in [HybridDiffractionPlane.SAGITTAL]:
                 # FAR FIELD PROPAGATION
                 if input_parameters.propagation_type in [HybridPropagationType.FAR_FIELD, HybridPropagationType.BOTH]:
                     ff_beam = image_plane_beam_good.duplicate()
 
                     angle_perpen = numpy.arctan(calculation_parameters.zp_screen / calculation_parameters.yp_screen)
                     angle_num    = numpy.sqrt(1 + (numpy.tan(angle_perpen)) ** 2 + (numpy.tan(calculation_parameters.dx_convolution)) ** 2)
+                    if not input_parameters.treat_displacement_as_phase_shift: angle_num *= 2
 
                     ff_beam.rays[:, 0] = copy.deepcopy(calculation_parameters.xx_image_ff)
                     ff_beam.rays[:, 3] = numpy.tan(calculation_parameters.dx_convolution) / angle_num
@@ -333,18 +334,19 @@ class _ShadowOEHybridScreen():
                     nf_beam = image_plane_beam_good.duplicate()
 
                     nf_beam.rays[:, 0] = copy.deepcopy(calculation_parameters.xx_image_nf)
-            elif input_parameters.diffraction_plane in [HybridDiffractionPlane.TANGENTIAL]:
+        elif input_parameters.diffraction_plane in [HybridDiffractionPlane.TANGENTIAL]:
                 # FAR FIELD PROPAGATION
                 if input_parameters.propagation_type in [HybridPropagationType.FAR_FIELD, HybridPropagationType.BOTH]:
                     if ff_beam is None: ff_beam = image_plane_beam_good.duplicate()
 
                     angle_perpen = numpy.arctan(calculation_parameters.xp_screen / calculation_parameters.yp_screen)
                     angle_num    = numpy.sqrt(1 + (numpy.tan(angle_perpen)) ** 2 + (numpy.tan(calculation_parameters.dz_convolution)) ** 2)
+                    if not input_parameters.treat_displacement_as_phase_shift: angle_num *= 2
 
                     ff_beam.rays[:, 2] = copy.deepcopy(calculation_parameters.zz_image_ff)
-                    ff_beam.rays[:, 3] += numpy.tan(angle_perpen) / angle_num
-                    ff_beam.rays[:, 4] += 1 / angle_num
-                    ff_beam.rays[:, 5] += numpy.tan(calculation_parameters.dz_convolution) / angle_num
+                    ff_beam.rays[:, 3] = numpy.tan(angle_perpen) / angle_num
+                    ff_beam.rays[:, 4] = 1 / angle_num
+                    ff_beam.rays[:, 5] = numpy.tan(calculation_parameters.dz_convolution) / angle_num
 
                     if image_plane_beam_lost.get_number_of_rays() > 0: ff_beam = S4Beam(array=numpy.concatenate((ff_beam.rays, image_plane_beam_lost.rays), axis=0))
 
@@ -353,12 +355,13 @@ class _ShadowOEHybridScreen():
                     if nf_beam is None: nf_beam = image_plane_beam_good.duplicate()
 
                     nf_beam.rays[:, 2] = copy.deepcopy(calculation_parameters.zz_image_nf)
-            elif input_parameters.diffraction_plane in [HybridDiffractionPlane.BOTH_2X1D]:
+        elif input_parameters.diffraction_plane in [HybridDiffractionPlane.BOTH_2X1D]:
                 # FAR FIELD PROPAGATION
                 if input_parameters.propagation_type in [HybridPropagationType.FAR_FIELD, HybridPropagationType.BOTH]:
                     if ff_beam is None: ff_beam = image_plane_beam_good.duplicate()
 
-                    angle_num    = numpy.sqrt(1 + (numpy.tan(calculation_parameters.dx_convolution)) ** 2 + (numpy.tan(calculation_parameters.dz_convolution)) ** 2)
+                    angle_num = numpy.sqrt(1 + (numpy.tan(calculation_parameters.dx_convolution)) ** 2 + (numpy.tan(calculation_parameters.dz_convolution)) ** 2)
+                    if not input_parameters.treat_displacement_as_phase_shift: angle_num *= 2
 
                     ff_beam.rays[:, 0] = copy.deepcopy(calculation_parameters.xx_image_ff)
                     ff_beam.rays[:, 2] = copy.deepcopy(calculation_parameters.zz_image_ff)
@@ -426,7 +429,7 @@ class _S4OEWithSurfaceHybridScreen(_ShadowOEHybridScreen):
         movements         = beamline_element.get_movements()
         diffraction_plane = input_parameters.diffraction_plane
 
-        if not movements is None and input_parameters.analyze_displacements:
+        if not movements is None and input_parameters.treat_displacement_as_phase_shift:
             if diffraction_plane == HybridDiffractionPlane.SAGITTAL:  # X
                 if movements.rotation_x != 0.0 or movements.rotation_z != 0.0: raise Exception("Only rotations around the Y axis are supported for sagittal diffraction plane")
             elif (diffraction_plane == HybridDiffractionPlane.TANGENTIAL or diffraction_plane == HybridDiffractionPlane.BOTH_2D):  # Z
@@ -687,6 +690,15 @@ class _S4OEKBMirrorHybridScreen():
 
         kb_mirror_1.get_coordinates().set_p_and_q(p=kb_mirror_1.get_coordinates().p(), q=total_image_distance)
 
+    def _get_kb_mirror_2_input_beam(self, kb_mirror_2: BeamlineElement, beam_1: HybridBeamWrapper):
+        kb_mirror_2 : S4BeamlineElement = kb_mirror_2.duplicate()
+        kb_mirror_2.set_input_beam(beam_1.wrapped_beam)
+
+        shadow_beam, _ = kb_mirror_2.trace_beam()
+
+        return shadow_beam
+
+
     def _merge_beams(self, beam_1: S4HybridBeam, beam_2: S4HybridBeam):
         if beam_1 is None or beam_2 is None: return None
 
@@ -733,10 +745,45 @@ class S4KBMirrorSizeHybridScreen(_S4OEKBMirrorHybridScreen, AbstractKBMirrorSize
     def __init__(self, wave_optics_provider: HybridWaveOpticsProvider, implementation: str, **kwargs):
         AbstractKBMirrorSizeHybridScreen.__init__(self, wave_optics_provider, implementation, **kwargs)
 
+    def run_hybrid_method(self, input_parameters : HybridInputParameters):
+        kb_mirror_result: HybridCalculationResult = super(S4KBMirrorSizeAndErrorHybridScreen, self).run_hybrid_method(input_parameters)
+
+        if input_parameters.treat_displacement_as_phase_shift:
+            sign    = 1 if input_parameters.optical_element.wrapped_optical_element[1].get_coordinates().angle_azimuthal() == 0.5*np.pi else -1
+            ff_beam = kb_mirror_result.far_field_beam
+            nf_beam = kb_mirror_result.near_field_beam
+
+            if not ff_beam is None:
+                ff_beam.wrapped_beam.rays[:, 0] *= sign
+                ff_beam.wrapped_beam.rays[:, 3] *= sign
+
+            if not nf_beam is None:
+                nf_beam.wrapped_beam.rays[:, 0] *= sign
+                nf_beam.wrapped_beam.rays[:, 3] *= sign
+
+        return kb_mirror_result
+
 class S4KBMirrorSizeAndErrorHybridScreen(_S4OEKBMirrorHybridScreen, AbstractKBMirrorSizeAndErrorHybridScreen):
     def __init__(self, wave_optics_provider: HybridWaveOpticsProvider, implementation: str, **kwargs):
         AbstractKBMirrorSizeAndErrorHybridScreen.__init__(self, wave_optics_provider, implementation, **kwargs)
 
+    def run_hybrid_method(self, input_parameters : HybridInputParameters):
+        kb_mirror_result: HybridCalculationResult = super(S4KBMirrorSizeAndErrorHybridScreen, self).run_hybrid_method(input_parameters)
+
+        if input_parameters.treat_displacement_as_phase_shift:
+            sign    = 1 if (input_parameters.optical_element.wrapped_optical_element[1].get_coordinates().angle_azimuthal() - 0.5*np.pi < 1e-3) else -1
+            ff_beam = kb_mirror_result.far_field_beam
+            nf_beam = kb_mirror_result.near_field_beam
+
+            if not ff_beam is None:
+                ff_beam.wrapped_beam.rays[:, 0] *= sign
+                ff_beam.wrapped_beam.rays[:, 3] *= sign
+
+            if not nf_beam is None:
+                nf_beam.wrapped_beam.rays[:, 0] *= sign
+                nf_beam.wrapped_beam.rays[:, 3] *= sign
+
+        return kb_mirror_result
 
 # -------------------------------------------------------------
 # -------------------------------------------------------------

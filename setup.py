@@ -68,11 +68,11 @@ INSTALL_REQUIRES = (
     'srxraylib>=1.0.67',
     'wofryimpl>=1.0.34',
     'shadow4>=0.1.79',
-    'shadow-hybrid-methods>=1.0.23',
+    'shadow-hybrid-methods>=1.0.25',
 )
 
 setup(name='shadow4-advanced',
-      version='0.0.22',
+      version='0.0.23',
       description='advanced tools for shadow4 in python',
       author='Luca Rebuffi, Xianbo Shi, Manuel Sanchez del Rio',
       author_email='lrebuffi@anl.gov',
