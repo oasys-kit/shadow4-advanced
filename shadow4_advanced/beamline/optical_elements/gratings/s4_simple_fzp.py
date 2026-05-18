@@ -103,6 +103,7 @@ class S4SimpleFZP(OpticalElement, S4OpticalElementDecorator):
                  source_distance      = 0.0,
                  type_of_zp           = FZPType.PHASE_ZP,
                  zone_plate_material  = "Au",
+                 zone_plate_material_2      = None,
                  zone_plate_thickness = 200.0 * 1e-9, #nm
                  substrate_material   = "Si3N4",
                  substrate_thickness  = 50.0 * 1e-9, #nm
@@ -116,6 +117,7 @@ class S4SimpleFZP(OpticalElement, S4OpticalElementDecorator):
         self.__delta_rn             = delta_rn
         self.__source_distance      = source_distance
         self.__zone_plate_material  = zone_plate_material
+        self.__zone_plate_material_2 = zone_plate_material_2
         self.__zone_plate_thickness = zone_plate_thickness
         self.__substrate_material   = substrate_material
         self.__substrate_thickness  = substrate_thickness
@@ -131,6 +133,8 @@ class S4SimpleFZP(OpticalElement, S4OpticalElementDecorator):
     def source_distance(self): return self.__source_distance
 
     def zone_plate_material(self): return self.__zone_plate_material
+
+    def zone_plate_material_2(self): return self.__zone_plate_material_2
 
     def zone_plate_thickness(self, native=False): return self.__zone_plate_thickness*1e9 if native else self.__zone_plate_thickness
 
@@ -153,6 +157,7 @@ class S4SimpleFZP(OpticalElement, S4OpticalElementDecorator):
         if self.__type_of_zp == FZPType.PHASE_ZP:
             efficiency, max_efficiency, thickness_max_efficiency = _calculate_efficiency(wavelength=wavelength_in_nm,
                                                                                          zone_plate_material=self.zone_plate_material(),
+                                                                                         zone_plate_material_2=self.zone_plate_material_2(),
                                                                                          zone_plate_thickness=self.zone_plate_thickness(native=True))
         else:
             efficiency               = 100 / (numpy.pi ** 2)
@@ -166,6 +171,7 @@ class S4SimpleFZP(OpticalElement, S4OpticalElementDecorator):
         for index in range(len(efficiencies)):
             efficiencies[index], _, _ = _calculate_efficiency(wavelength=W2E / energies[index] * 1e9,
                                                               zone_plate_material=self.zone_plate_material(),
+                                                              zone_plate_material_2=self.zone_plate_material_2(),
                                                               zone_plate_thickness=self.zone_plate_thickness(native=True))
         return efficiencies
 
@@ -174,6 +180,7 @@ class S4SimpleFZP(OpticalElement, S4OpticalElementDecorator):
         for index in range(len(efficiencies)):
             efficiencies[index], _, _ = _calculate_efficiency(wavelength=wavelength_in_nm,
                                                               zone_plate_material=self.zone_plate_material(),
+                                                              zone_plate_material_2=self.zone_plate_material_2(),
                                                               zone_plate_thickness=thicknesses_in_nm[index])
         return efficiencies
 
@@ -252,6 +259,7 @@ class S4SimpleFZPElement(S4BeamlineElement):
                                                                  fzp.substrate_material(),
                                                                  fzp.substrate_thickness(native=True),
                                                                  fzp.zone_plate_material(),
+                                                                 fzp.zone_plate_material_2(),
                                                                  fzp.zone_plate_thickness(native=True),
                                                                  fzp.source_distance())
         output_beam.retrace(self.get_coordinates().q())
@@ -333,13 +341,30 @@ def _get_material_weight_factor(rays, material, thickness):
 
     return numpy.sqrt(numpy.exp(-mu * rho * thickness * 1e-7))  # thickness in CM
 
-def _get_delta_beta(rays, material):
-    density = materials_library.ElementDensity(materials_library.SymbolToAtomicNumber(material))
 
+def _compound_density(compound):
+    parsed = materials_library.CompoundParser(compound)
+
+    inverse_density = sum(
+        w / materials_library.ElementDensity(Z)
+        for Z, w in zip(parsed['Elements'], parsed['massFractions'])
+    )
+    return 1.0 / inverse_density
+
+def _get_density(material):
+    try:        density = materials_library.ElementDensity(materials_library.SymbolToAtomicNumber(material))
+    except :
+        try:    density = materials_library.GetCompoundDataNISTByName(material)['density']
+        except: density = _compound_density(material)
+
+    return density
+
+def _get_delta_beta(rays, material):
     energy_in_KeV = (E2K / rays[:, 10]) * 1e-3
 
-    delta = (1 - materials_library.Refractive_Index_Re(material, energy_in_KeV, density))
-    beta  = materials_library.Refractive_Index_Im(material, energy_in_KeV, density)
+    density = _get_density(material)
+    delta   = (1 - materials_library.Refractive_Index_Re(material, energy_in_KeV, density))
+    beta    = materials_library.Refractive_Index_Im(material, energy_in_KeV, density)
 
     return delta, beta
 
@@ -410,6 +435,7 @@ def _apply_fresnel_zone_plate(zone_plate_beam,
                               substrate_material,
                               substrate_thickness,
                               zone_plate_material,
+                              zone_plate_material_2,
                               zone_plate_thickness,
                               source_distance):
     max_zones_number = int(diameter * 1000 / (4 * delta_rn))
@@ -448,12 +474,18 @@ def _apply_fresnel_zone_plate(zone_plate_beam,
 
     if type_of_zp == FZPType.PHASE_ZP:
         wavelength  = (2 * numpy.pi / focused_beam.rays[go_2, 10]) * 1e+7  # nm
-        delta, beta = _get_delta_beta(focused_beam.rays[go_2], zone_plate_material)
 
-        phi = 2 * numpy.pi * zone_plate_thickness * delta / wavelength
-        rho = beta / delta
+        rho, phi, delta, beta = _get_material_parameters(wavelength, zone_plate_material, zone_plate_thickness)
 
-        efficiency_zp = (1 / (numpy.pi ** 2)) * (1 + numpy.exp(-2 * rho * phi) - (2 * numpy.exp(-rho * phi) * numpy.cos(phi)))
+        if zone_plate_material_2 is None:
+            efficiency_zp = (1 / (numpy.pi ** 2)) * (1 + numpy.exp(-2 * rho * phi) - (2 * numpy.exp(-rho * phi) * numpy.cos(phi)))
+        else:
+            rho2, phi2, delta2, beta2 = _get_material_parameters(wavelength, zone_plate_material_2, zone_plate_thickness)
+
+            efficiency_zp = (1 / (numpy.pi ** 2)) * (numpy.exp(-2 * rho * phi)
+                                                     + numpy.exp(-2 * rho2 * phi2)
+                                                     - 2 * numpy.exp(-(rho * phi + rho2 * phi2)) * numpy.cos(phi - phi2))
+
         efficiency_weight_factor = numpy.sqrt(efficiency_zp)
 
     elif type_of_zp == FZPType.AMPLITUDE_ZP:
@@ -475,17 +507,37 @@ def _apply_fresnel_zone_plate(zone_plate_beam,
 
     return focused_beam, max_zones_number
 
-def _calculate_efficiency(wavelength, zone_plate_material, zone_plate_thickness):
+def _get_material_parameters(wavelength, zone_plate_material, zone_plate_thickness):
     energy_in_KeV = (W2E / wavelength) * 1e6
 
-    density = materials_library.ElementDensity(materials_library.SymbolToAtomicNumber(zone_plate_material))
+    density = _get_density(zone_plate_material)
     delta   = (1 - materials_library.Refractive_Index_Re(zone_plate_material, energy_in_KeV, density))
     beta    = materials_library.Refractive_Index_Im(zone_plate_material, energy_in_KeV, density)
     phi     = 2 * numpy.pi * zone_plate_thickness * delta / wavelength
     rho     = beta / delta
 
-    efficiency               = (1 / (numpy.pi ** 2)) * (1 + numpy.exp(-2 * rho * phi) - (2 * numpy.exp(-rho * phi) * numpy.cos(phi)))
-    max_efficiency           = (1 / (numpy.pi ** 2)) * (1 + numpy.exp(-2 * rho * numpy.pi) + (2 * numpy.exp(-rho * numpy.pi)))
-    thickness_max_efficiency = numpy.round(wavelength / (2 * delta), 2)
+    return rho, phi, delta, beta
+
+def _calculate_efficiency(wavelength, zone_plate_material, zone_plate_material_2, zone_plate_thickness):
+    rho, phi, delta, beta = _get_material_parameters(wavelength, zone_plate_material, zone_plate_thickness)
+
+    if zone_plate_material_2 is None:
+        efficiency               = (1 / (numpy.pi ** 2)) * (1 + numpy.exp(-2 * rho * phi) - (2 * numpy.exp(-rho * phi) * numpy.cos(phi)))
+        max_efficiency           = (1 / (numpy.pi ** 2)) * (1 + numpy.exp(-2 * rho * numpy.pi) + (2 * numpy.exp(-rho * numpy.pi)))
+        thickness_max_efficiency = wavelength / (2 * delta)
+    else:
+        rho2, phi2, delta2, beta2 = _get_material_parameters(wavelength, zone_plate_material_2, zone_plate_thickness)
+
+        efficiency = (1 / (numpy.pi ** 2)) * (numpy.exp(-2 * rho * phi)
+                                              + numpy.exp(-2 * rho2 * phi2)
+                                              - 2 * numpy.exp(-(rho * phi + rho2 * phi2)) * numpy.cos(phi - phi2))
+        thickness_max_efficiency = wavelength / (2 * numpy.abs((delta - delta2)))
+
+        phi_max  = 2 * numpy.pi * thickness_max_efficiency * delta / wavelength
+        phi2_max = 2 * numpy.pi * thickness_max_efficiency * delta2 / wavelength
+
+        max_efficiency = (1 / numpy.pi ** 2) * (numpy.exp(-2 * rho * phi_max)
+                                                + numpy.exp(-2 * rho2 * phi2_max)
+                                                + 2 * numpy.exp(-(rho * phi_max + rho2 * phi2_max)))  # +2 because cos(π) = -1
 
     return efficiency, max_efficiency, thickness_max_efficiency
