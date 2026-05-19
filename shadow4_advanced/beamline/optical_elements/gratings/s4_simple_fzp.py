@@ -168,8 +168,9 @@ class S4SimpleFZP(OpticalElement, S4OpticalElementDecorator):
 
     def get_efficiency_by_energy(self, energies):
         efficiencies = numpy.zeros(len(energies))
+        wavelengths  = W2E / energies * 1e9
         for index in range(len(efficiencies)):
-            efficiencies[index], _, _ = _calculate_efficiency(wavelength=W2E / energies[index] * 1e9,
+            efficiencies[index], _, _ = _calculate_efficiency(wavelength=wavelengths[index],
                                                               zone_plate_material=self.zone_plate_material(),
                                                               zone_plate_material_2=self.zone_plate_material_2(),
                                                               zone_plate_thickness=self.zone_plate_thickness(native=True))
@@ -182,6 +183,17 @@ class S4SimpleFZP(OpticalElement, S4OpticalElementDecorator):
                                                               zone_plate_material=self.zone_plate_material(),
                                                               zone_plate_material_2=self.zone_plate_material_2(),
                                                               zone_plate_thickness=thicknesses_in_nm[index])
+        return efficiencies
+
+    def get_efficiency_by_energy_and_thickness(self, energies, thicknesses_in_nm):
+        wavelengths  = W2E / energies * 1e9
+        wl, th       = numpy.meshgrid(wavelengths, thicknesses_in_nm, indexing='ij')
+
+        efficiencies, _, _ = _calculate_efficiency(wavelength=wl,
+                                                   zone_plate_material=self.zone_plate_material(),
+                                                   zone_plate_material_2=self.zone_plate_material_2(),
+                                                   zone_plate_thickness=th)
+
         return efficiencies
 
     def to_python_code(self, **kwargs):
@@ -205,8 +217,10 @@ optical_element = S4SimpleFZP(name                 = '{self.get_name()}',
                               delta_rn             = {self.delta_rn()},
                               source_distance      = {self.source_distance()},
                               type_of_zp           = {self.type_of_zp()},
-                              zone_plate_material  = '{self.zone_plate_material()}',
-                              zone_plate_thickness = {self.zone_plate_thickness()},
+                              zone_plate_material  = '{self.zone_plate_material()}',\n"""
+        if not self.zone_plate_material_2() is None: txt += f"                            zone_plate_material_2 = '{self.zone_plate_material_2()}',\n"
+        else:                                        txt += f"                            zone_plate_material_2 = None,\n"
+        txt += f"""                              zone_plate_thickness = {self.zone_plate_thickness()},
                               substrate_material   = '{self.substrate_material()}',
                               substrate_thickness  = {self.substrate_thickness()})
 """
@@ -342,22 +356,61 @@ def _get_material_weight_factor(rays, material, thickness):
     return numpy.sqrt(numpy.exp(-mu * rho * thickness * 1e-7))  # thickness in CM
 
 
-def _compound_density(compound):
-    parsed = materials_library.CompoundParser(compound)
+def _compound_density(material):
+        compoundData = materials_library.CompoundParser(material)
 
-    inverse_density = sum(
-        w / materials_library.ElementDensity(Z)
-        for Z, w in zip(parsed['Elements'], parsed['massFractions'])
-    )
-    return 1.0 / inverse_density
+        n_elements = compoundData["nElements"]
+        if n_elements == 1:
+            return materials_library.ElementDensity(compoundData["Elements"][0])
+        else:
+            density         = 0.0
+            mass_fractions = compoundData["massFractions"]
+            elements       = compoundData["Elements"]
+            for i in range(n_elements): density += materials_library.ElementDensity(elements[i]) * mass_fractions[i]
 
-def _get_density(material):
-    try:        density = materials_library.ElementDensity(materials_library.SymbolToAtomicNumber(material))
-    except :
-        try:    density = materials_library.GetCompoundDataNISTByName(material)['density']
-        except: density = _compound_density(material)
+            return density
+
+def _crystal_density(crystal_name: str) -> float:
+    """
+    Compute the theoretical density of a crystalline compound (g/cm³)
+    using xraylib crystal structure data.
+    """
+    NA        = 6.02214076e23  # Avogadro's number (mol⁻¹)
+    A3_TO_CM3 = 1e-24   # 1 Å³ = 1e-24 cm³
+
+    # Fetch crystal structure
+    crystal = materials_library.Crystal_GetCrystal(crystal_name)
+    if crystal is None: raise ValueError(f"Crystal '{crystal_name}' not found in xraylib database.")
+
+    # Unit cell volume in cm³
+    V_cm3 = crystal['volume'] * A3_TO_CM3
+
+    # Sum atomic masses of all atoms in the unit cell
+    # 'fraction' is occupancy (accounts for partial occupancy sites)
+    total_mass_per_mol = sum(atom['fraction'] * materials_library.AtomicWeight(atom['Zatom']) for atom in crystal['atom'])
+    # Density in g/cm³
+    density = total_mass_per_mol / (NA * V_cm3)
 
     return density
+
+_map = {
+    "Al2O3": "AlphaAlumina",
+    "SiO2":  "AlphaQuartz",
+}
+
+def _map_compound_names(material: str) -> str:
+    return _map.get(material, material)
+
+def _get_density(material):
+    try:             density = _get_material_density(material)
+    except :
+        try:         density = _crystal_density(_map_compound_names(material))
+        except :
+            try:     density = materials_library.GetCompoundDataNISTByName(_map_compound_names(material))['density']
+            except : raise ValueError(f"Failed to compute density for material '{material}'")
+
+    return density
+
 
 def _get_delta_beta(rays, material):
     energy_in_KeV = (E2K / rays[:, 10]) * 1e-3
@@ -528,9 +581,7 @@ def _calculate_efficiency(wavelength, zone_plate_material, zone_plate_material_2
     else:
         rho2, phi2, delta2, beta2 = _get_material_parameters(wavelength, zone_plate_material_2, zone_plate_thickness)
 
-        efficiency = (1 / (numpy.pi ** 2)) * (numpy.exp(-2 * rho * phi)
-                                              + numpy.exp(-2 * rho2 * phi2)
-                                              - 2 * numpy.exp(-(rho * phi + rho2 * phi2)) * numpy.cos(phi - phi2))
+        efficiency = (1 / (numpy.pi ** 2)) * (numpy.exp(-2 * rho * phi) + numpy.exp(-2 * rho2 * phi2) - 2 * numpy.exp(-(rho * phi + rho2 * phi2)) * numpy.cos(phi - phi2))
         thickness_max_efficiency = wavelength / (2 * numpy.abs((delta - delta2)))
 
         phi_max  = 2 * numpy.pi * thickness_max_efficiency * delta / wavelength
