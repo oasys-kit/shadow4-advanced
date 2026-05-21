@@ -876,6 +876,8 @@ class S4HybridScreenElement(S4BeamlineElement):
 
         return txt
 
+    @property
+    def input_parameters(self) -> HybridInputParameters: return copy.deepcopy(self.__hybrid_input_parameters)
 
 # -------------------------------------------------------------
 # -------------------------------------------------------------
