@@ -50,7 +50,6 @@ from typing import Tuple, Union
 
 import numpy as np
 
-from shadow4.beam import s4_beam
 from srxraylib.util.data_structures import ScaledMatrix
 
 from syned.beamline.shape import Ellipsoid, EllipticalCylinder, Hyperboloid, HyperbolicCylinder, Circle
@@ -67,7 +66,7 @@ from shadow4.beamline.optical_elements.gratings.s4_additional_numerical_mesh_gra
 from shadow4.beamline.optical_elements.refractors.s4_crl import S4CRLElement
 from shadow4.beamline.optical_elements.refractors.s4_lens import S4LensElement
 
-from hybrid_methods.coherence.hybrid_screen import HybridBeamWrapper, HybridLengthUnits, HybridOEWrapper, HybridGeometryAnalysis, HybridCalculationType, HybridInputParameters, HybridCalculationResult, \
+from hybrid_methods.coherence.hybrid_screen import HybridBeamWrapper, HybridLengthUnits, HybridOEWrapper, HybridCalculationType, HybridInputParameters, HybridCalculationResult, \
     HybridDiffractionPlane, HybridPropagationType, HybridWaveOpticsProvider, AbstractHybridScreen, AbstractSimpleApertureHybridScreen, AbstractMirrorOrGratingSizeHybridScreen, \
     AbstractMirrorSizeAndErrorHybridScreen, AbstractGratingSizeAndErrorHybridScreen, AbstractCRLSizeHybridScreen, AbstractCRLSizeAndErrorHybridScreen, \
     AbstractKBMirrorSizeHybridScreen, AbstractKBMirrorSizeAndErrorHybridScreen, HybridScreenManager
