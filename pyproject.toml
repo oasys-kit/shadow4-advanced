@@ -1,0 +1,65 @@
+# Memorandum:
+#
+# Install from sources (developer / editable):
+#     git clone https://github.com/oasys-kit/shadow4-advanced
+#     cd shadow4-advanced
+#     python -m pip install -e . --no-deps --no-build-isolation
+#     # NOTE: use --no-build-isolation, NOT --no-binary :all:. The latter forces an
+#     # isolated source build that writes a setuptools wheel to the pip cache and
+#     # fails with "[Errno 13] Permission denied: ...\pip\cache\wheels\..." .
+#
+# Upload to pypi (when uploading, increment the version number):
+#     rm -rf dist
+#     python -m build          # builds BOTH the sdist and the wheel
+#     python -m twine upload dist/*
+#
+# Install from pypi:
+#     pip install shadow4-advanced
+
+[build-system]
+requires = ["setuptools>=77.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "shadow4-advanced"
+version = "0.0.31"
+description = "advanced tools for shadow4 in python"
+license = "MIT"
+# license-files = ["LICENSE"]   # <- uncomment if a LICENSE file exists in the repo
+# readme = "README.md"          # <- uncomment if a README exists (see chat notes)
+authors = [
+    { name = "Luca Rebuffi", email = "lrebuffi@anl.gov" },
+    { name = "Xianbo Shi" },
+    { name = "Manuel Sanchez del Rio", email = "srio@esrf.eu" },
+]
+dependencies = [
+    "setuptools",
+    "numpy",
+    "scipy",
+    "syned>=1.0.57",
+    "srxraylib>=1.0.68",
+    "wofryimpl>=1.0.38",
+    "shadow4>=0.1.88",
+    "shadow-hybrid-methods>=1.0.28",
+]
+
+[project.urls]
+Homepage = "https://github.com/oasys-kit/shadow4-advanced/"
+
+[tool.setuptools]
+packages = [
+    "shadow4_advanced",
+    "shadow4_advanced.beamline",
+    "shadow4_advanced.beamline.optical_elements",
+    "shadow4_advanced.beamline.optical_elements.benders",
+    "shadow4_advanced.beamline.optical_elements.gratings",
+    "shadow4_advanced.beamline.optical_elements.hybrid",
+    "shadow4_advanced.sources",
+    "shadow4_advanced.sources.hybrid",
+]
+
+# Alternative to the hand-maintained list above -- discovers subpackages
+# automatically and cannot drift out of sync with the source tree:
+#
+# [tool.setuptools.packages.find]
+# include = ["shadow4_advanced*"]
